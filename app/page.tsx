@@ -4,13 +4,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { assessDailyNutrition, enrichModelMeal, Meal, parseModelJson, recalculateMeal } from '@/lib/nutrition';
 import { bigModelRequest, chooseNativeImage, isNativeApp } from '@/lib/native-bridge';
+import { protocolLabels, providerPresets } from '@/lib/model-provider';
+import type { ModelConnection, ProviderProtocol } from '@/lib/model-provider';
 import {
   acceptPlanProposal, buildSession, createPlanProposal, defaultProfile, Equipment, ExerciseDefinition, ExerciseLog, goalLabels,
   PlanProposal, PlanVersion, recoveryRecommendations, splitLabel, TrainingDayCount, TrainingGoal, TrainingProfile, TrainingSession, WorkoutLog,
 } from '@/lib/training';
 
 type Tab = 'today' | 'plan' | 'nutrition' | 'body' | 'settings';
-type Settings = { endpoint:string; model:string; apiKey:string; target:number };
+type Settings = ModelConnection & { target:number };
 type WgerMedia = { image?:string; video?:string; author:string; license:string; licenseUrl:string; description:string };
 type BodyMetric = { id:string;date:string;weightKg:number;bodyFatPercent:number;muscleMassKg:number;visceralFat:number;bmr:number;source:'report'|'manual';confidence:number;note:string;createdAt:number;reportType?:'body_composition'|'checkup' };
 type CoachPlan = { goal:TrainingGoal;daysPerWeek:TrainingDayCount;sessionMinutes:number;cycle:string;deload:string;rationale:string[];nutritionFocus:string;changeType?:'dose'|'structure' };
@@ -25,8 +27,8 @@ const PLAN_PROPOSALS_KEY='liantu.plan-proposals.v1';
 const ONBOARDING_KEY='liantu.onboarding.v1';
 
 const defaultSettings:Settings={
-  endpoint:'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-  model:'glm-5v-turbo',apiKey:'',target:2000,
+  providerId:'zhipu',protocol:'openai_chat',endpoint:'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+  model:'glm-5v-turbo',apiKey:'',customHeaders:'',target:2000,
 };
 
 const localExerciseMedia:Record<string,WgerMedia>={
@@ -177,6 +179,14 @@ export default function Home() {
   const dailyNutrition=useMemo(()=>assessDailyNutrition({totals,calorieTarget:settings.target,weightKg:todayEffectiveProfile.weightKg,goal:todayEffectiveProfile.goal,hasTraining:!todaySession.recovery}),[totals,settings.target,todayEffectiveProfile,todaySession.recovery]);
 
   const saveSettings=()=>{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));setNotice('设置已保存在这台设备');};
+  const selectProvider=(id:string)=>{
+    const preset=providerPresets.find((item)=>item.id===id);if(!preset)return;
+    setModels([]);setSettings({...settings,providerId:preset.id,protocol:preset.protocol,endpoint:preset.endpoint,model:preset.model,apiKey:'',customHeaders:''});
+  };
+  const requireConnection=(needsModel=true)=>{
+    if(!settings.endpoint.trim()||(needsModel&&!settings.model.trim())){setTab('settings');setNotice(needsModel?'请先填写接口地址和模型名称':'请先填写接口地址');return false;}
+    return true;
+  };
   const choosePhoto=async(file?:File)=>{
     if(!file)return;setBusy('正在处理照片…');setNotice('');setCurrentMeal(null);
     try{setImageData(await imageToData(file));}catch(error){setNotice(error instanceof Error?error.message:'无法读取图片');}finally{setBusy('');}
@@ -187,7 +197,7 @@ export default function Home() {
   };
   const analyze=async()=>{
     if(!imageData)return setNotice('请先拍照或选择一张照片');
-    if(!settings.apiKey.trim()){setTab('settings');return setNotice('请先填写 API 密钥');}
+    if(!requireConnection())return;
     setBusy('正在识别食物并计算营养…');setNotice('');
     try{
       const payload=await proxy({action:'analyze',...settings,imageData});
@@ -202,15 +212,17 @@ export default function Home() {
   };
   const saveMeal=()=>{if(!currentMeal)return;setMeals((items)=>[{...currentMeal,timestamp:Date.now()},...items]);setCurrentMeal(null);setImageData('');setNotice('已记入今天，训练能量页已同步');};
   const fetchModels=async()=>{
+    if(!requireConnection(false))return;
     setBusy('正在获取模型列表…');setNotice('');
     try{const payload=await proxy({action:'models',...settings});setModels(payload.models||[]);setNotice(`已获取 ${payload.models?.length||0} 个模型`);}catch(error){setNotice(error instanceof Error?error.message:'获取失败');}finally{setBusy('');}
   };
   const probe=async()=>{
+    if(!requireConnection())return;
     setBusy('正在验证图片能力…');setNotice('');
     try{const payload=await proxy({action:'probe',...settings,imageData:imageData||testImageData()});setNotice(`图片测试通过：${(payload.content||'').slice(0,120)}`);}catch(error){setNotice(error instanceof Error?error.message:'测试失败');}finally{setBusy('');}
   };
   const askCoach=async()=>{
-    if(!settings.apiKey.trim()){setTab('settings');return setNotice('请先填写 API 密钥');}
+    if(!requireConnection())return;
     setBusy('教练正在结合训练和饮食记录…');setNotice('');
     try{
       const payload=await proxy({action:'coach',...settings,profile,session:todaySession,nutrition:{...totals,target:settings.target,burned},recentLogs:logs.slice(0,5),bodyMetrics:sortedBody.slice(0,6)});
@@ -223,7 +235,7 @@ export default function Home() {
   };
   const analyzeBodyReport=async()=>{
     if(!bodyImageData)return setNotice('请先选择报告截图');
-    if(!settings.apiKey.trim()){setTab('settings');return setNotice('请先填写 API 密钥');}
+    if(!requireConnection())return;
     setBusy(reportType==='body_composition'?'正在读取日期和体成分数据…':'正在读取体检报告中的明确字段…');setNotice('');
     try{
       const payload=await proxy({action:'bodyReport',reportType,...settings,imageData:bodyImageData});
@@ -243,7 +255,7 @@ export default function Home() {
     setNotice(`已按 ${record.date} 保存体成分记录，综合计划会自动读取`);
   };
   const generateCoachPlan=async()=>{
-    if(!settings.apiKey.trim()){setTab('settings');return setNotice('请先填写 API 密钥');}
+    if(!requireConnection())return;
     setBusy('正在综合训练、饮食与体成分趋势制定计划…');setNotice('');
     try{
       const payload=await proxy({action:'plan',...settings,profile,currentSession:todaySession,recentLogs:logs.slice(0,8),nutrition:{...totals,target:settings.target,burned},bodyMetrics:sortedBody.slice(0,8)});
@@ -365,7 +377,7 @@ export default function Home() {
 
     {tab==='settings'&&<section className="settings-stack">
       <div className="settings-card"><p className="section-kicker">个人训练参数</p><h2>用于计划与消耗估算</h2><div className="form-grid"><label>体重（kg）<input type="number" min="30" max="250" value={profile.weightKg} onChange={(event)=>setProfile({...profile,weightKg:Math.max(30,Number(event.target.value)||65)})}/></label><label>单次时长（分钟）<input type="number" min="20" max="120" value={profile.sessionMinutes} onChange={(event)=>setProfile({...profile,sessionMinutes:Math.max(20,Number(event.target.value)||45)})}/></label></div><div className="segment-row"><span>训练水平</span><div><button className={profile.level==='beginner'?'active':''} onClick={()=>setProfile({...profile,level:'beginner'})}>初学</button><button className={profile.level==='intermediate'?'active':''} onClick={()=>setProfile({...profile,level:'intermediate'})}>进阶</button></div></div></div>
-      <div className="settings-card"><p className="section-kicker">大模型 API</p><h2>连接智谱视觉与教练</h2><label>接口地址<input value={settings.endpoint} onChange={(event)=>setSettings({...settings,endpoint:event.target.value})}/></label><label>API 密钥<input type="password" autoComplete="off" placeholder="仅保存在这台设备" value={settings.apiKey} onChange={(event)=>setSettings({...settings,apiKey:event.target.value})}/></label><label>模型名称<input list="models" value={settings.model} onChange={(event)=>setSettings({...settings,model:event.target.value})}/></label><datalist id="models">{models.map((model)=><option key={model} value={model}/>)}</datalist><div className="two-buttons"><button className="secondary-action action-button" onClick={fetchModels}>获取模型</button><button className="secondary-action action-button" onClick={probe}>测试视觉</button></div><p className="field-help">API 用于餐食识别与训练记录解读；没有 API 时，日期计划、日志和规则调整仍可正常工作。</p></div>
+      <div className="settings-card model-settings"><div className="section-row"><div><p className="section-kicker">模型连接</p><h2>供应商与本地端口</h2></div><span>{protocolLabels[settings.protocol]}</span></div><div className="provider-grid">{providerPresets.map((preset)=><button key={preset.id} className={settings.providerId===preset.id?'active':''} onClick={()=>selectProvider(preset.id)}><b>{preset.name}</b><small>{preset.subtitle}</small></button>)}</div><div className="form-grid"><label>连接协议<select value={settings.protocol} onChange={(event)=>setSettings({...settings,providerId:'custom',protocol:event.target.value as ProviderProtocol})}>{(Object.keys(protocolLabels) as ProviderProtocol[]).map((protocol)=><option key={protocol} value={protocol}>{protocolLabels[protocol]}</option>)}</select></label><label>模型名称<input list="models" value={settings.model} onChange={(event)=>setSettings({...settings,model:event.target.value})} placeholder="可手工输入模型 ID"/></label></div><datalist id="models">{models.map((model)=><option key={model} value={model}/>)}</datalist><label>Base URL / 完整端点<input value={settings.endpoint} onChange={(event)=>setSettings({...settings,providerId:'custom',endpoint:event.target.value})} placeholder="https://… 或 APK 内 http://192.168…:11434"/></label><label>API 密钥（本地模型可留空）<input type="password" autoComplete="off" placeholder="仅保存在这台设备" value={settings.apiKey} onChange={(event)=>setSettings({...settings,apiKey:event.target.value})}/></label><details className="advanced-settings"><summary>高级：自定义请求头</summary><label>JSON 请求头<textarea value={settings.customHeaders} onChange={(event)=>setSettings({...settings,customHeaders:event.target.value})} placeholder={'{"HTTP-Referer":"https://example.com","X-Title":"练途"}'}/></label><p>用于网关、反向代理或供应商附加鉴权；自定义值会覆盖协议默认请求头。</p></details><div className="two-buttons"><button className="secondary-action action-button" onClick={fetchModels}>刷新模型列表</button><button className="secondary-action action-button" onClick={probe}>测试视觉连接</button></div><p className="field-help">支持 OpenAI Chat、Responses、Anthropic Messages、Gemini GenerateContent 与 Ollama 原生协议。{isNativeApp()?'APK 可直连本机或局域网 HTTP 端口。':'网页版自定义代理仅允许 HTTPS；本机和局域网端口请使用 APK。'} 没有模型连接时，训练计划、日历和日志仍可离线使用。</p></div>
       <div className="settings-card"><p className="section-kicker">每日能量目标</p><label>基础摄入目标（kcal）<input type="number" min="500" max="10000" value={settings.target} onChange={(event)=>setSettings({...settings,target:Math.max(500,Number(event.target.value)||2000)})}/></label><button className="primary-action action-button" onClick={saveSettings}>保存全部设置</button></div>
       <button className="install-card" onClick={()=>setInstallOpen(true)}><span>＋</span><div><b>安装到手机主屏幕</b><small>像普通 App 一样打开练途</small></div><i>›</i></button>
     </section>}

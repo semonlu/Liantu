@@ -1,6 +1,8 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { nutritionCatalogPrompt, parseModelJson } from './nutrition';
+import { listProviderModels, requestProviderModel, validateEndpoint } from './model-provider';
+import type { ModelConnection, ProviderProtocol } from './model-provider';
 
 type ApiPayload={error?:string;content?:string;models?:string[]};
 
@@ -18,22 +20,16 @@ export async function chooseNativeImage() {
   return photo.dataUrl;
 }
 
-function endpoint(value:unknown){
-  const raw=String(value??'').trim().replace(/\/+$/,'');
-  return raw.endsWith('/v4')?`${raw}/chat/completions`:raw;
-}
-function content(data:unknown){
-  const value=data as {choices?:Array<{message?:{content?:unknown}}>};
-  const raw=value.choices?.[0]?.message?.content;
-  return Array.isArray(raw)?raw.map((part)=>typeof part==='object'&&part?String((part as {text?:unknown}).text??''):'').join(''):String(raw??'').trim();
-}
-async function call(url:string,apiKey:string,data?:Record<string,unknown>,method:'GET'|'POST'='POST'){
-  const response=await CapacitorHttp.request({url,method,headers:{Authorization:`Bearer ${apiKey.replace(/[,，]+$/,'')}`,'Content-Type':'application/json; charset=utf-8'},data});
-  if(response.status<200||response.status>=300){
-    const message=typeof response.data==='string'?response.data:JSON.stringify(response.data);
-    throw new Error(`接口返回 ${response.status}：${message.slice(0,260)}`);
-  }
-  return response.data as unknown;
+const nativeHttp=async(url:string,method:'GET'|'POST',headers:Record<string,string>,data?:Record<string,unknown>)=>{
+  const response=await CapacitorHttp.request({url,method,headers,data});
+  return {status:response.status,data:response.data as unknown};
+};
+
+function connectionFrom(body:Record<string,unknown>):ModelConnection{
+  return {
+    providerId:String(body.providerId??'zhipu'),protocol:String(body.protocol??'openai_chat') as ProviderProtocol,
+    endpoint:String(body.endpoint??''),model:String(body.model??''),apiKey:String(body.apiKey??''),customHeaders:String(body.customHeaders??''),
+  };
 }
 
 export async function bigModelRequest(body:Record<string,unknown>):Promise<ApiPayload>{
@@ -43,30 +39,31 @@ export async function bigModelRequest(body:Record<string,unknown>):Promise<ApiPa
     if(!response.ok)throw new Error(payload.error||'请求失败，请稍后重试');
     return payload;
   }
-  const apiKey=String(body.apiKey??'').trim(),url=endpoint(body.endpoint),model=String(body.model??'').trim(),action=String(body.action??'analyze');
-  if(!apiKey)throw new Error('请先填写 API 密钥');
+  const connection=connectionFrom(body),action=String(body.action??'analyze');
+  validateEndpoint(connection.endpoint,true);
   if(action==='models'){
-    const data=await call(url.replace(/\/chat\/completions$/,'/models'),apiKey,undefined,'GET') as {data?:Array<{id?:string}>};
-    return {models:(data.data??[]).map((item)=>String(item.id??'')).filter(Boolean)};
+    const models=await listProviderModels(connection,nativeHttp);
+    if(!models.length)throw new Error('服务器返回的模型列表为空');
+    return {models};
   }
+  if(!connection.model.trim())throw new Error('请先填写或选择模型');
   const context={profile:body.profile,currentSession:body.currentSession??body.session,recentLogs:body.recentLogs,nutrition:body.nutrition,bodyMetrics:body.bodyMetrics};
   if(action==='coach'||action==='plan'){
-    const data=await call(url,apiKey,{model,temperature:.2,max_tokens:action==='plan'?900:600,thinking:{type:'disabled'},...(action==='plan'?{response_format:{type:'json_object'}}:{}),messages:[{role:'system',content:action==='plan'?planPrompt:coachPrompt},{role:'user',content:`用户数据：${JSON.stringify(context).slice(0,24000)}`}]});
-    const result=content(data);if(!result)throw new Error('模型没有返回内容');return {content:result};
+    const result=await requestProviderModel({connection,system:action==='plan'?planPrompt:coachPrompt,text:`用户数据：${JSON.stringify(context).slice(0,24000)}`,temperature:.2,maxTokens:action==='plan'?900:600,json:action==='plan'},nativeHttp);
+    return {content:result};
   }
   const imageData=String(body.imageData??'');
   if(!/^data:image\/(?:jpeg|png|webp);base64,/i.test(imageData))throw new Error('图片格式无效，请重新选择');
   if(action==='probe'||action==='bodyReport'){
     const system=action==='bodyReport'?(body.reportType==='checkup'?checkupPrompt:bodyPrompt):'';
     const prompt=action==='probe'?'简短描述图片中最明显的物体或色块，不推测。':'读取报告并严格保留原单位，不推算缺失值。';
-    const data=await call(url,apiKey,{model,temperature:0,max_tokens:action==='probe'?160:900,thinking:{type:'disabled'},...(action==='bodyReport'?{response_format:{type:'json_object'}}:{}),messages:[...(system?[{role:'system',content:system}]:[]),{role:'user',content:[{type:'text',text:prompt},{type:'image_url',image_url:{url:imageData}}]}]});
-    const result=content(data);if(!result)throw new Error('模型没有返回内容');return {content:result};
+    const result=await requestProviderModel({connection,system,text:prompt,imageData,temperature:0,maxTokens:action==='probe'?160:900,json:action==='bodyReport'},nativeHttp);
+    return {content:result};
   }
   let failure='输出不完整';
   for(let attempt=0;attempt<2;attempt++){
     const retry=attempt?'上次输出不完整。本次 assumptions 不超过40字、最多8项，必须使用紧凑JSON并完整闭合所有括号。':'';
-    const data=await call(url,apiKey,{model,temperature:0,max_tokens:4096,thinking:{type:'disabled'},response_format:{type:'json_object'},messages:[{role:'system',content:mealPrompt+nutritionCatalogPrompt()+retry},{role:'user',content:[{type:'text',text:'分析这张餐食照片。优先按中国常见烹饪方式判断，并列出分项。'},{type:'image_url',image_url:{url:imageData}}]}]});
-    const result=content(data);
+    const result=await requestProviderModel({connection,system:mealPrompt+nutritionCatalogPrompt()+retry,text:'分析这张餐食照片。优先按中国常见烹饪方式判断，并列出分项。',imageData,temperature:0,maxTokens:4096,json:true},nativeHttp);
     try{const parsed=parseModelJson(result);if(!Array.isArray(parsed.items)||!parsed.items.length)throw new Error('没有食物分项');return {content:result};}catch(error){failure=error instanceof Error?error.message:failure;}
   }
   throw new Error(`模型返回不完整，自动重试仍失败：${failure}`);

@@ -8,6 +8,7 @@
   "scripts": {
     "prebuild": "node scripts/build-knowledge-index.mjs",
     "knowledge:build": "node scripts/build-knowledge-index.mjs",
+    "model:validate": "node --experimental-strip-types scripts/validate-model-providers.ts",
     "mobile:build": "node scripts/build-knowledge-index.mjs && vite build --config vite.mobile.config.ts",
     "android:sync": "npm run mobile:build && cap sync android",
     "android:debug": "npm run android:sync && android\\gradlew.bat assembleDebug",
