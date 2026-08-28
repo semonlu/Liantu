@@ -204,9 +204,9 @@ const splitRecipes:Record<TrainingDayCount,SessionRecipe[]> = {
     recipe('全身 B｜髋拉主导','髋铰链 · 划船 · 肩推','覆盖全身主要动作模式',[['rdl','T1'],['cable_row','T1'],['press','T2'],['leg_extension','T3'],['side_plank','T3']]),
   ],
   3:[
-    recipe('全身 A｜蹲推','腿举 · 推胸 · 下拉','建立蹲、水平推和垂直拉能力',[['leg_press','T1'],['bench','T1'],['lat_pulldown','T2'],['leg_curl','T3'],['dead_bug','T3']]),
-    recipe('全身 B｜髋拉','髋铰链 · 划船 · 肩推','强化髋铰链、水平拉和垂直推',[['rdl','T1'],['cable_row','T1'],['press','T2'],['leg_extension','T3'],['plank','T3']]),
-    recipe('全身 C｜单腿与容量','单腿 · 胸背辅助 · 携带','补齐单侧稳定与工作容量',[['lunge','T1'],['chest_fly','T2'],['lat_pulldown','T2'],['triceps','T3'],['carry','conditioning']],6),
+    recipe('推｜胸肩肱三头','卧推 · 肩推 · 夹胸','集中完成上肢推举力量与增肌训练',[['bench','T1'],['press','T2'],['chest_fly','T3'],['triceps','T3'],['dead_bug','T3']]),
+    recipe('拉｜背部与握力','下拉 · 划船 · 携带','集中完成垂直拉、水平拉和握力训练',[['lat_pulldown','T1'],['cable_row','T2'],['row','T3'],['carry','T3'],['side_plank','T3']]),
+    recipe('腿｜下肢与臀腿','腿举 · 髋铰链 · 屈伸','集中完成下肢蹲推、髋铰链和屈伸训练',[['leg_press','T1'],['rdl','T2'],['leg_curl','T3'],['leg_extension','T3'],['bridge','T3']]),
   ],
   4:[
     recipe('下肢 A｜力量','腿举 · 髋铰链','下肢高质量主项输出',[['leg_press','T1'],['rdl','T2'],['leg_curl','T3'],['leg_extension','T3'],['dead_bug','T3']]),
@@ -374,7 +374,7 @@ export function estimateCalories(met:number,weightKg:number,minutes:number) {
 }
 
 export function splitLabel(days:TrainingDayCount) {
-  return ({2:'全身 A/B',3:'全身 A/B/C',4:'上肢/下肢四分化',5:'上下肢四练 + 功能体能',6:'推/拉/腿 × 2'})[days];
+  return ({2:'全身 A/B',3:'推/拉/腿三分化',4:'上肢/下肢四分化',5:'上下肢四练 + 功能体能',6:'推/拉/腿 × 2'})[days];
 }
 
 export function buildSession(profile:TrainingProfile,dateValue:Date,logs:WorkoutLog[]):TrainingSession {

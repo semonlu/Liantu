@@ -23,7 +23,7 @@ const BODY_REPORT_PROMPT='读取八电极生物电阻抗体成分报告截图。
 const CHECKUP_REPORT_PROMPT='读取常规体检报告截图。只摘录明确可见的检查日期、指标、结果、单位和参考范围，不诊断、不推算。只返回 JSON：date,weightKg,bodyFatPercent,muscleMassKg,visceralFat,bmr,confidence,visibleFindings,note。没有相应体成分字段填0。';
 const COACH_PROMPT='你是训练记录解读助手。根据目标、今日计划、最近训练完成度与 RPE、当天饮食记录和体成分趋势，用中文给出3-5句简洁、可执行的今日建议。区分事实、估算与建议；不虚构缺失数据。';
 const CHAT_PROMPT='你是练途 AI 教练。用自然中文回答用户，并且只返回 JSON：reply(string),action(null或对象)。action 只能是以下一种：{type:"profile",weightKg?:number,sleepHours?:number} 用于记录用户明确说出的体重或平均睡眠；{type:"energy",kcal:number,note:string} 用于记录用户明确说出的额外运动消耗或纠正值，kcal 可正可负；{type:"plan",goal?:fat_loss|strength|hypertrophy|endurance|circuit|functional,daysPerWeek?:2|3|4|5|6,sessionMinutes?:20-120,rationale:string} 用于提出计划调整。不得从模糊对话推测数值；没有明确可执行内容时 action 为 null。任何 action 都只是待用户确认，不能声称已经保存或应用。';
-const PLAN_PROMPT='你是训练计划解释与提案助手，不能绕过确定性规则引擎。只返回 JSON：goal(fat_loss|strength|hypertrophy|endurance|circuit|functional),daysPerWeek(2|3|4|5|6),sessionMinutes(20-120),changeType(dose|structure),cycle,deload,rationale(2-4条),nutritionFocus。2天全身AB、3天全身ABC、4天上下肢、5天上下肢加功能体能、6天PPL两轮。新手不固定整周减载；中级只有累计疲劳信号满足时才提出主动减载。单餐异常不得修改训练。';
+const PLAN_PROMPT='你是训练计划解释与提案助手，不能绕过确定性规则引擎。只返回 JSON：goal(fat_loss|strength|hypertrophy|endurance|circuit|functional),daysPerWeek(2|3|4|5|6),sessionMinutes(20-120),changeType(dose|structure),cycle,deload,rationale(2-4条),nutritionFocus。当前产品结构为2天全身AB、3天器械优先推拉腿、4天上下肢、5天上下肢加功能体能、6天PPL两轮；分化是产品可执行性选择，不得声称某种分化具有绝对优势。新手不固定整周减载；中级只有累计疲劳信号满足时才提出主动减载。单餐异常不得修改训练。';
 
 const protocols:ProviderProtocol[]=['openai_chat','openai_responses','anthropic_messages','gemini_generate','ollama_chat'];
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T18:45:32.614Z",
+  "generatedAt": "2026-08-28T19:01:49.900Z",
   "rules": [
     {
       "id": "evidence-source-required",
@@ -138,16 +138,16 @@
       ]
     },
     {
-      "id": "split-3-fullbody",
+      "id": "split-3-ppl-gym",
       "cardId": "split-selection",
-      "condition": "每周可训练3天",
+      "condition": "每周可训练3天、健身房器械优先且用户明确偏好胸背腿分开",
       "target": "splitCode",
       "min": 3,
       "max": 3,
       "priority": 100,
       "sourceIds": [
         "acsm-2026",
-        "gzcl-public"
+        "iusca-2021"
       ]
     },
     {

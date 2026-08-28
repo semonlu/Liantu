@@ -10,7 +10,7 @@
   {"id":"cover-major-patterns","cardId":"movement-patterns-and-machines","condition":"生成一周训练","target":"coveredMovementPatterns","min":6,"max":9,"priority":90,"sourceIds":["acsm-2026"]},
   {"id":"prefer-available-stable-equipment","cardId":"movement-patterns-and-machines","condition":"健身房或混合器械且用户无专项限制","target":"machineExerciseSharePercent","min":55,"max":85,"priority":75,"sourceIds":["acsm-2026","wger"]},
   {"id":"split-2-fullbody","cardId":"split-selection","condition":"每周可训练2天","target":"splitCode","min":2,"max":2,"priority":100,"sourceIds":["acsm-2026","bbm-beginner"]},
-  {"id":"split-3-fullbody","cardId":"split-selection","condition":"每周可训练3天","target":"splitCode","min":3,"max":3,"priority":100,"sourceIds":["acsm-2026","gzcl-public"]},
+  {"id":"split-3-ppl-gym","cardId":"split-selection","condition":"每周可训练3天、健身房器械优先且用户明确偏好胸背腿分开","target":"splitCode","min":3,"max":3,"priority":100,"sourceIds":["acsm-2026","iusca-2021"]},
   {"id":"split-4-upper-lower","cardId":"split-selection","condition":"每周可训练4天","target":"splitCode","min":4,"max":4,"priority":100,"sourceIds":["acsm-2026","tsa-freebies"]},
   {"id":"split-5-upper-lower-conditioning","cardId":"split-selection","condition":"每周可训练5天且目标包含体能","target":"splitCode","min":5,"max":5,"priority":100,"sourceIds":["acsm-2026"]},
   {"id":"split-6-ppl","cardId":"split-selection","condition":"每周可训练6天且恢复条件良好","target":"splitCode","min":6,"max":6,"priority":100,"sourceIds":["iusca-2021"]},
