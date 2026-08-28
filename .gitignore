@@ -33,7 +33,13 @@ yarn-error.log*
 .vercel
 next-env.d.ts
 /dist/
+/dist-mobile/
+/android/.gradle/
+/android/app/build/
+/android/local.properties
+/signing/
 /.wrangler/
 /outputs/
 /work/
+/tmp/
 /tsconfig.tsbuildinfo

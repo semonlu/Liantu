@@ -6,17 +6,27 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "prebuild": "node scripts/build-knowledge-index.mjs",
+    "knowledge:build": "node scripts/build-knowledge-index.mjs",
+    "mobile:build": "node scripts/build-knowledge-index.mjs && vite build --config vite.mobile.config.ts",
+    "android:sync": "npm run mobile:build && cap sync android",
+    "android:debug": "npm run android:sync && android\\gradlew.bat assembleDebug",
+    "android:release": "npm run android:sync && android\\gradlew.bat assembleRelease",
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
   },
   "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/camera": "^6.1.2",
+    "@capacitor/core": "^6.2.1",
     "next": "16.2.6",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.2.1",
     "@cloudflare/vite-plugin": "1.37.1",
     "@cloudflare/workers-types": "4.20260515.1",
     "@openai/sites-vite-plugin": "^0.1.0 || ^0.2.0",

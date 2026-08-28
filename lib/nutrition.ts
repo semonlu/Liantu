@@ -33,6 +33,22 @@ export type Meal = {
   fat: number;
 };
 
+export type DailyNutritionAssessment = {
+  calorieTarget:number;
+  caloriesConsumed:number;
+  caloriesRemaining:number;
+  proteinTarget:number;
+  proteinRemaining:number;
+  carbsTarget:number;
+  carbsRemaining:number;
+  fatTarget:number;
+  fatRemaining:number;
+  status:'insufficient'|'on_track'|'over';
+  nextMealAdvice:string[];
+  recoveryImpact:string;
+  trainingChangeAllowed:false;
+};
+
 type Entry = {
   key: string;
   name: string;
@@ -197,4 +213,36 @@ export function parseModelJson(content: string): Record<string,unknown> {
   const end = cleaned.lastIndexOf('}');
   if (start < 0 || end <= start) throw new Error('模型没有返回可解析的食物数据');
   return JSON.parse(cleaned.slice(start,end + 1));
+}
+
+export function assessDailyNutrition(input:{
+  totals:{calories:number;protein:number;carbs:number;fat:number};
+  calorieTarget:number;
+  weightKg:number;
+  goal:'fat_loss'|'strength'|'hypertrophy'|'endurance'|'circuit'|'functional';
+  hasTraining:boolean;
+}):DailyNutritionAssessment {
+  const weight=Math.max(30,input.weightKg);
+  const proteinPerKg=input.goal==='fat_loss'?2:input.goal==='hypertrophy'?1.8:1.6;
+  const proteinTarget=Math.round(weight*proteinPerKg);
+  const carbsTarget=Math.round(weight*(input.hasTraining?input.goal==='endurance'?4:3:2));
+  const fatTarget=Math.round(Math.max(45,input.calorieTarget*.25/9));
+  const caloriesRemaining=Math.round(input.calorieTarget-input.totals.calories);
+  const proteinRemaining=Math.round(proteinTarget-input.totals.protein);
+  const carbsRemaining=Math.round(carbsTarget-input.totals.carbs);
+  const fatRemaining=Math.round(fatTarget-input.totals.fat);
+  const tolerance=Math.max(120,input.calorieTarget*.08);
+  const status=caloriesRemaining < -tolerance?'over':caloriesRemaining > tolerance?'insufficient':'on_track';
+  const advice:string[]=[];
+  if(proteinRemaining>20)advice.push(`后一餐优先补约 ${Math.min(50,proteinRemaining)}g 蛋白质，可选瘦肉、鱼虾、蛋奶或豆制品。`);
+  if(carbsRemaining>35&&input.hasTraining)advice.push(`训练前后仍可补约 ${Math.min(90,carbsRemaining)}g 碳水，优先米面薯类和水果。`);
+  if(fatRemaining<0)advice.push('今天脂肪已偏高，后续选择清蒸、炖煮或少油做法，减少坚果、油炸和浓酱。');
+  if(caloriesRemaining<0)advice.push(`已超出约 ${Math.abs(caloriesRemaining)} kcal；后续餐减少高油高糖食物，保持正常训练，不用额外惩罚性加练。`);
+  if(!advice.length)advice.push('今天总量和宏量营养接近目标，后一餐保持平常份量并补足蔬菜和水分。');
+  return {
+    calorieTarget:input.calorieTarget,caloriesConsumed:Math.round(input.totals.calories),caloriesRemaining,
+    proteinTarget,proteinRemaining,carbsTarget,carbsRemaining,fatTarget,fatRemaining,status,nextMealAdvice:advice,
+    recoveryImpact:status==='insufficient'&&input.hasTraining?'若连续多日能量不足且训练表现下降，会生成待确认的恢复建议；单日偏差不改训练。':status==='over'?'单日超出不改变训练；观察后续 7–14 天体重、饥饿和表现趋势。':'当前摄入不会触发训练计划变化。',
+    trainingChangeAllowed:false,
+  };
 }

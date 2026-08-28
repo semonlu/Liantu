@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { enrichModelMeal, parseModelJson, recalculateMeal } from '../lib/nutrition.ts';
+import { assessDailyNutrition, enrichModelMeal, parseModelJson, recalculateMeal } from '../lib/nutrition.ts';
 
 const localMeal=enrichModelMeal({
   mealName:'米饭',confidence:90,assumptions:'测试',
@@ -19,5 +19,10 @@ assert.equal(fallback.items[0].sourceType,'model');
 const edited=recalculateMeal(fallback,fallback.items.map((item,index)=>index===0?{...item,grams:200}:item));
 assert.equal(edited.calories,440,'模型估算项修改克数后应重新计算');
 assert.equal(edited.protein,8);
+
+const assessment=assessDailyNutrition({totals:{calories:2300,protein:80,carbs:190,fat:110},calorieTarget:2000,weightKg:70,goal:'strength',hasTraining:true});
+assert.equal(assessment.status,'over');
+assert.equal(assessment.trainingChangeAllowed,false);
+assert.ok(assessment.nextMealAdvice.some((item)=>item.includes('惩罚性加练')));
 
 console.log('nutrition validation passed');

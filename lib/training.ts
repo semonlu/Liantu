@@ -1,15 +1,21 @@
-export type TrainingGoal = 'fat_loss' | 'strength' | 'endurance' | 'circuit' | 'functional';
+export type TrainingGoal = 'fat_loss' | 'strength' | 'hypertrophy' | 'endurance' | 'circuit' | 'functional';
 export type TrainingLevel = 'beginner' | 'intermediate';
-export type Equipment = 'bodyweight' | 'dumbbell' | 'gym';
+export type Equipment = 'bodyweight' | 'dumbbell' | 'gym' | 'mixed';
+export type TrainingDayCount = 2 | 3 | 4 | 5 | 6;
+export type ExerciseRole = 'T1' | 'T2' | 'T3' | 'conditioning' | 'recovery';
 
 export type TrainingProfile = {
   goal: TrainingGoal;
   level: TrainingLevel;
   equipment: Equipment;
-  daysPerWeek: 3 | 4 | 5;
+  daysPerWeek: TrainingDayCount;
   sessionMinutes: number;
   weightKg: number;
   startDate: string;
+  sleepHours?: number;
+  readiness?: 1 | 2 | 3 | 4 | 5;
+  painAreas?: string[];
+  cardioActivities?: string[];
 };
 
 export type ExerciseDefinition = {
@@ -24,9 +30,12 @@ export type ExerciseDefinition = {
 };
 
 export type ExercisePrescription = ExerciseDefinition & {
+  role: ExerciseRole;
   sets: number;
   reps: string;
   restSeconds: number;
+  targetRpe: number;
+  progressionNote: string;
 };
 
 export type TrainingSession = {
@@ -35,7 +44,10 @@ export type TrainingSession = {
   title: string;
   focus: string;
   week: number;
-  phase: '基础' | '积累' | '强化' | '减载';
+  phase: '基础' | '积累' | '强化' | '评估' | '减载';
+  split: string;
+  objective: string;
+  evidenceIds: string[];
   durationMinutes: number;
   estimatedCalories: number;
   circuit: boolean;
@@ -73,13 +85,43 @@ export type RecoveryRecommendation = {
   massageGun:string;
 };
 
+export type PlanVersion = {
+  id: string;
+  version: number;
+  createdAt: number;
+  effectiveFrom: string;
+  profile: TrainingProfile;
+  reason: string;
+  evidenceIds: string[];
+  previousVersionId?: string;
+};
+
+export type PlanProposal = {
+  id: string;
+  createdAt: number;
+  status: 'pending' | 'accepted' | 'rejected';
+  changeType: 'dose' | 'structure';
+  summary: string;
+  rationale: string[];
+  evidenceIds: string[];
+  before: TrainingProfile;
+  after: TrainingProfile;
+  effectiveFrom: string;
+};
+
+export type CalendarSession = TrainingSession & {
+  planVersionId: string;
+  status: 'planned' | 'completed' | 'missed' | 'recovery';
+};
+
 export const goalLabels: Record<TrainingGoal,string> = {
-  fat_loss:'减脂', strength:'力量', endurance:'耐力', circuit:'循环', functional:'功能性',
+  fat_loss:'减脂', strength:'力量', hypertrophy:'增肌', endurance:'耐力', circuit:'循环', functional:'功能性',
 };
 
 export const defaultProfile: TrainingProfile = {
   goal:'strength', level:'beginner', equipment:'gym', daysPerWeek:3,
-  sessionMinutes:45, weightKg:65, startDate:new Date().toISOString().slice(0,10),
+  sessionMinutes:60, weightKg:65, startDate:new Date().toISOString().slice(0,10),
+  sleepHours:7.5, readiness:3, painAreas:[], cardioActivities:[],
 };
 
 const catalog: Record<string,ExerciseDefinition> = {
@@ -135,33 +177,48 @@ const catalog: Record<string,ExerciseDefinition> = {
     cues:['用可持续、能说短句的速度','身体放松，步频自然','结束前逐步降低速度'],easier:'舒适步速散步' },
 };
 
-type SessionRecipe = { title:string; focus:string; met:number; circuit?:boolean; items:Array<[string,number,string,number]> };
+type RecipeItem = { id:string; role:ExerciseRole };
+type SessionRecipe = { title:string; focus:string; objective:string; met:number; circuit?:boolean; items:RecipeItem[] };
 
-const recipes: Record<TrainingGoal,SessionRecipe[]> = {
-  strength:[
-    { title:'全身器械力量 A',focus:'腿举 · 卧推 · 下拉 · 核心',met:5.5,items:[['leg_press',3,'8–10 次',90],['bench',3,'6–10 次',120],['lat_pulldown',3,'8–12 次',90],['leg_curl',3,'10–12 次',75],['dead_bug',3,'每侧 8 次',45]] },
-    { title:'全身器械力量 B',focus:'腿部 · 划船 · 肩臂',met:5.5,items:[['leg_extension',3,'10–12 次',75],['cable_row',3,'8–12 次',90],['press',3,'8–10 次',75],['triceps',3,'10–12 次',60],['plank',3,'25–40 秒',45]] },
+const recipe = (title:string,focus:string,objective:string,items:Array<[string,ExerciseRole]>,met=5.5,circuit=false):SessionRecipe => ({
+  title,focus,objective,met,circuit,items:items.map(([id,role])=>({id,role})),
+});
+
+const splitRecipes:Record<TrainingDayCount,SessionRecipe[]> = {
+  2:[
+    recipe('全身 A｜蹲推主导','腿举 · 推胸 · 下拉','全身力量基础与动作技术',[['leg_press','T1'],['bench','T1'],['lat_pulldown','T2'],['leg_curl','T3'],['dead_bug','T3']]),
+    recipe('全身 B｜髋拉主导','髋铰链 · 划船 · 肩推','覆盖全身主要动作模式',[['rdl','T1'],['cable_row','T1'],['press','T2'],['leg_extension','T3'],['side_plank','T3']]),
   ],
-  fat_loss:[
-    { title:'减脂循环 A',focus:'全身循环 · 中等强度',met:7,circuit:true,items:[['jumping_jack',4,'40 秒',20],['body_squat',4,'12 次',20],['pushup',4,'8 次',20],['mountain',4,'30 秒',60],['plank',3,'30 秒',30]] },
-    { title:'器械力量 + 有氧',focus:'力量保留 · 稳态心肺',met:6.5,items:[['leg_press',3,'10 次',60],['cable_row',3,'10 次',60],['chest_fly',3,'10–12 次',60],['walk',1,'20–30 分钟',60]] },
+  3:[
+    recipe('全身 A｜蹲推','腿举 · 推胸 · 下拉','建立蹲、水平推和垂直拉能力',[['leg_press','T1'],['bench','T1'],['lat_pulldown','T2'],['leg_curl','T3'],['dead_bug','T3']]),
+    recipe('全身 B｜髋拉','髋铰链 · 划船 · 肩推','强化髋铰链、水平拉和垂直推',[['rdl','T1'],['cable_row','T1'],['press','T2'],['leg_extension','T3'],['plank','T3']]),
+    recipe('全身 C｜单腿与容量','单腿 · 胸背辅助 · 携带','补齐单侧稳定与工作容量',[['lunge','T1'],['chest_fly','T2'],['lat_pulldown','T2'],['triceps','T3'],['carry','conditioning']],6),
   ],
-  endurance:[
-    { title:'有氧耐力基础',focus:'低至中等强度持续训练',met:6,items:[['walk',1,'30–45 分钟',60],['bird_dog',2,'每侧 8 次',30],['side_plank',2,'每侧 20 秒',30]] },
-    { title:'短间歇耐力',focus:'1 分钟快 + 2 分钟慢',met:8,circuit:true,items:[['jumping_jack',6,'60 秒',120],['mountain',6,'30 秒',60],['body_squat',3,'12 次',30],['dead_bug',3,'每侧 8 次',30]] },
+  4:[
+    recipe('下肢 A｜力量','腿举 · 髋铰链','下肢高质量主项输出',[['leg_press','T1'],['rdl','T2'],['leg_curl','T3'],['leg_extension','T3'],['dead_bug','T3']]),
+    recipe('上肢 A｜力量','卧推 · 下拉 · 划船','上肢推拉力量与肩胛控制',[['bench','T1'],['lat_pulldown','T2'],['cable_row','T2'],['triceps','T3'],['side_plank','T3']]),
+    recipe('下肢 B｜容量与单腿','单腿 · 后侧链 · 携带','下肢训练量和单侧稳定',[['lunge','T1'],['leg_curl','T2'],['leg_extension','T3'],['bridge','T3'],['carry','conditioning']],6),
+    recipe('上肢 B｜容量','肩推 · 胸背辅助','上肢增肌容量与躯干稳定',[['press','T1'],['cable_row','T2'],['chest_fly','T2'],['triceps','T3'],['plank','T3']]),
   ],
-  circuit:[
-    { title:'器械循环 A',focus:'推 · 拉 · 腿 · 短休息',met:7,circuit:true,items:[['leg_press',4,'12 次',30],['chest_fly',4,'10 次',30],['cable_row',4,'10 次',30],['leg_curl',4,'12 次',75]] },
-    { title:'器械循环 B',focus:'下肢 · 肩臂 · 核心',met:7,circuit:true,items:[['leg_extension',4,'12 次',30],['lat_pulldown',4,'10 次',30],['press',4,'10 次',30],['triceps',4,'12 次',75]] },
+  5:[
+    recipe('下肢 A｜力量','腿举 · 髋铰链','下肢主项力量',[['leg_press','T1'],['rdl','T2'],['leg_curl','T3'],['dead_bug','T3']]),
+    recipe('上肢 A｜力量','卧推 · 下拉','上肢推拉力量',[['bench','T1'],['lat_pulldown','T2'],['cable_row','T2'],['triceps','T3']]),
+    recipe('功能体能｜低技术门槛','携带 · 循环 · 抗旋转','工作容量、搬运和核心稳定',[['carry','T1'],['leg_press','T2'],['cable_row','T2'],['side_plank','T3'],['walk','conditioning']],6.5,true),
+    recipe('下肢 B｜容量','单腿 · 屈伸 · 后侧链','下肢增肌容量与稳定',[['lunge','T1'],['leg_curl','T2'],['leg_extension','T3'],['bridge','T3']]),
+    recipe('上肢 B｜容量','肩推 · 胸背辅助','上肢增肌容量',[['press','T1'],['cable_row','T2'],['chest_fly','T2'],['triceps','T3']]),
   ],
-  functional:[
-    { title:'功能性基础 A',focus:'蹲 · 携带 · 抗旋转',met:5.5,items:[['body_squat',3,'10 次',60],['lunge',3,'每侧 8 次',60],['carry',4,'30–45 秒',45],['bird_dog',3,'每侧 8 次',30],['side_plank',3,'每侧 20 秒',30]] },
-    { title:'功能性基础 B',focus:'髋铰链 · 推拉 · 稳定',met:5.5,items:[['rdl',3,'10 次',75],['pushup',3,'8–12 次',60],['row',3,'每侧 10 次',60],['bridge',3,'12 次',45],['dead_bug',3,'每侧 8 次',30]] },
+  6:[
+    recipe('推 A｜力量','胸 · 肩 · 肱三头','水平推主项力量',[['bench','T1'],['press','T2'],['chest_fly','T3'],['triceps','T3']]),
+    recipe('拉 A｜力量','背 · 肱二头 · 握力','垂直拉和水平拉力量',[['lat_pulldown','T1'],['cable_row','T2'],['row','T3'],['carry','T3']]),
+    recipe('腿 A｜力量','腿举 · 后侧链','下肢主项力量',[['leg_press','T1'],['rdl','T2'],['leg_curl','T3'],['dead_bug','T3']]),
+    recipe('推 B｜容量','肩 · 胸 · 肱三头','上肢推增肌容量',[['press','T1'],['bench','T2'],['chest_fly','T3'],['triceps','T3']]),
+    recipe('拉 B｜容量','背部 · 肩胛 · 核心','上肢拉增肌容量',[['cable_row','T1'],['lat_pulldown','T2'],['row','T3'],['side_plank','T3']]),
+    recipe('腿 B｜容量','单腿 · 股四头 · 臀腿','下肢增肌容量与单侧稳定',[['lunge','T1'],['leg_extension','T2'],['leg_curl','T2'],['bridge','T3']]),
   ],
 };
 
-const weekdaySets: Record<TrainingProfile['daysPerWeek'],number[]> = {
-  3:[1,3,5], 4:[1,2,4,6], 5:[1,2,3,5,6],
+const weekdaySets: Record<TrainingDayCount,number[]> = {
+  2:[1,4], 3:[1,3,5], 4:[1,2,4,6], 5:[1,2,3,5,6], 6:[1,2,3,4,5,6],
 };
 
 const localDate = (date:Date) => {
@@ -176,7 +233,7 @@ function daysBetween(start:string,end:string) {
 
 function equipmentVariant(id:string,profile:TrainingProfile) {
   const gymFallbacks:Record<string,string>={leg_press:'squat',bench:'pushup',lat_pulldown:'row',leg_curl:'rdl',cable_row:'row',leg_extension:'lunge',chest_fly:'pushup',triceps:'pushup'};
-  if(profile.equipment!=='gym'&&gymFallbacks[id])id=gymFallbacks[id];
+  if(!['gym','mixed'].includes(profile.equipment)&&gymFallbacks[id])id=gymFallbacks[id];
   if (profile.equipment==='bodyweight') {
     if (id==='squat') return 'body_squat';
     if (id==='row') return 'bird_dog';
@@ -184,33 +241,77 @@ function equipmentVariant(id:string,profile:TrainingProfile) {
     if (id==='press') return 'pushup';
     if (id==='carry') return 'plank';
   }
-  if (id==='swing' && profile.equipment!=='gym') return 'rdl';
+  if (id==='swing' && !['gym','mixed'].includes(profile.equipment)) return 'rdl';
   return id;
 }
 
-export function phaseForWeek(week:number):TrainingSession['phase'] {
+export function phaseForWeek(week:number,level:TrainingLevel='intermediate',fatigueSignals=0):TrainingSession['phase'] {
+  if (level==='beginner') return fatigueSignals>=2 ? '减载' : '基础';
   const cycleWeek=((Math.max(1,week)-1)%8)+1;
-  if(cycleWeek<=2)return '基础';
-  if(cycleWeek<=5)return '积累';
-  if(cycleWeek<=7)return '强化';
-  return '减载';
+  if(fatigueSignals>=2 && cycleWeek>=4)return '减载';
+  if(cycleWeek<=3)return '积累';
+  if(cycleWeek===4||cycleWeek===8)return '评估';
+  return '强化';
+}
+
+export function fatigueSignalCount(profile:TrainingProfile,logs:WorkoutLog[]) {
+  const recent=[...logs].sort((a,b)=>b.completedAt-a.completedAt).slice(0,3);
+  let signals=0;
+  if(recent.length>=2&&recent.slice(0,2).every((log)=>log.completion<.75))signals++;
+  if(recent.filter((log)=>log.averageRpe>=9).length>=2)signals++;
+  if(recent.some((log)=>/关节|疼|痛|刺|不适/.test(log.note)))signals++;
+  if((profile.sleepHours??7.5)<6.5)signals++;
+  if((profile.readiness??3)<=2)signals++;
+  if((profile.painAreas?.length??0)>0)signals++;
+  return signals;
+}
+
+function doseFor(goal:TrainingGoal,role:ExerciseRole,phase:TrainingSession['phase']) {
+  const strength=goal==='strength';
+  const hypertrophy=goal==='hypertrophy';
+  const endurance=['endurance','circuit'].includes(goal);
+  const conditioning=role==='conditioning';
+  let sets=conditioning?1:role==='T1'?4:role==='T2'?3:2;
+  let reps=conditioning?'12–20 分钟':role==='T1'?(strength?'4–6 次':hypertrophy?'6–10 次':'8–12 次'):role==='T2'?(strength?'6–10 次':'8–12 次'):'10–15 次';
+  let restSeconds=conditioning?60:role==='T1'?(strength?150:120):role==='T2'?90:60;
+  let targetRpe=role==='T3'?8:8;
+  if(endurance&&!conditioning){reps='12–18 次';restSeconds=45;sets=Math.max(2,sets-1);}
+  if(goal==='functional'&&role==='T1'){reps='6–8 次';sets=3;}
+  if(goal==='fat_loss'&&!conditioning){reps='8–12 次';restSeconds=Math.min(restSeconds,75);}
+  if(phase==='积累'&&role!=='conditioning')sets+=role==='T1'?0:1;
+  if(phase==='强化'&&role==='T1'){sets+=1;reps=strength?'3–5 次':'5–8 次';targetRpe=8.5;}
+  if(phase==='评估'){sets=Math.max(2,sets-1);targetRpe=7.5;}
+  if(phase==='减载'){sets=Math.max(1,Math.ceil(sets*.55));targetRpe=6;restSeconds=Math.max(60,restSeconds);}
+  return {sets,reps,restSeconds,targetRpe};
+}
+
+function progressionFor(exerciseId:string,role:ExerciseRole,logs:WorkoutLog[]) {
+  const recent=[...logs].sort((a,b)=>b.completedAt-a.completedAt)
+    .flatMap((log)=>log.exercises.filter((item)=>item.exerciseId===exerciseId)).slice(0,2);
+  if(recent.length===2&&recent.every((item)=>item.rpe>=9||item.completedSets<2))return '连续两次未达最低目标：下次降重 5%–10%，再逐步爬升。';
+  if(recent.length===2&&recent.every((item)=>item.rpe<=8&&item.completedSets>=2))return role==='T1'?'完成目标后加重 2%–5%；若次数下降则保持重量。':'先做到次数区间上限，再加最小配重。';
+  return role==='T1'?'保留约 2 次余力；完成全部目标组次后再加重。':'使用双重进阶：先加次数，再加最小配重。';
 }
 
 function recoverySession(profile:TrainingProfile,date:string,week:number):TrainingSession {
   const duration=Math.min(30,Math.max(15,Math.round(profile.sessionMinutes*.5)));
   return {
-    id:`${date}-recovery`,date,title:'主动恢复',focus:'轻松步行 · 关节活动',week,phase:phaseForWeek(week),durationMinutes:duration,
+    id:`${date}-recovery`,date,title:'主动恢复',focus:'轻松步行 · 关节活动',objective:'促进恢复，不补做漏掉的高强度训练',week,phase:phaseForWeek(week,profile.level),split:splitLabel(profile.daysPerWeek),evidenceIds:['acsm-2026'],durationMinutes:duration,
     estimatedCalories:estimateCalories(3,profile.weightKg,duration),circuit:false,recovery:true,
     adjustment:'今天是计划恢复日；轻松活动即可，不需要补做高强度训练。',
     exercises:[
-      {...catalog.walk,sets:1,reps:`${duration-5} 分钟`,restSeconds:30},
-      {...catalog.bird_dog,sets:2,reps:'每侧 6 次',restSeconds:30},
+      {...catalog.walk,role:'recovery',sets:1,reps:`${duration-5} 分钟`,restSeconds:30,targetRpe:3,progressionNote:'保持能轻松交谈的强度。'},
+      {...catalog.bird_dog,role:'recovery',sets:2,reps:'每侧 6 次',restSeconds:30,targetRpe:4,progressionNote:'只增加动作控制，不追求力竭。'},
     ],
   };
 }
 
 export function estimateCalories(met:number,weightKg:number,minutes:number) {
   return Math.round(Math.max(1,met)*3.5*Math.max(30,weightKg)/200*Math.max(1,minutes));
+}
+
+export function splitLabel(days:TrainingDayCount) {
+  return ({2:'全身 A/B',3:'全身 A/B/C',4:'上肢/下肢四分化',5:'上下肢四练 + 功能体能',6:'推/拉/腿 × 2'})[days];
 }
 
 export function buildSession(profile:TrainingProfile,dateValue:Date,logs:WorkoutLog[]):TrainingSession {
@@ -222,33 +323,30 @@ export function buildSession(profile:TrainingProfile,dateValue:Date,logs:Workout
   if (!weekdays.includes(weekday)) return recoverySession(profile,date,week);
 
   const slot=weekdays.indexOf(weekday);
-  const list=recipes[profile.goal];
-  const recipe=list[(slot+week-1)%list.length];
-  const recent=[...logs].sort((a,b)=>b.completedAt-a.completedAt).slice(0,2);
-  const phase=phaseForWeek(week);
-  const underRecovered=recent.length>0 && (recent[0].averageRpe>=8.8 || recent[0].completion<.7);
-  const progressing=recent.length===2 && recent.every((log)=>log.completion>=.9 && log.averageRpe<=7.5);
-  const levelDelta=profile.level==='intermediate'?1:0;
+  const list=splitRecipes[profile.daysPerWeek];
+  const selected=list[slot%list.length];
+  const signals=fatigueSignalCount(profile,logs);
+  const phase=phaseForWeek(week,profile.level,signals);
   const deload=phase==='减载';
-  const duration=Math.max(20,Math.round(profile.sessionMinutes*(underRecovered ? .82 : deload ? .72 : 1)));
-  const exercises=recipe.items.map(([rawId,baseSets,reps,rest],index) => {
+  const duration=Math.max(20,Math.round(profile.sessionMinutes*(deload?.65:phase==='评估'?.85:1)));
+  const maxItems=duration<40?4:selected.items.length;
+  const exercises=selected.items.slice(0,maxItems).map(({id:rawId,role}) => {
     const id=equipmentVariant(rawId,profile);
     const definition=catalog[id];
-    const phaseDelta=phase==='积累'&&index<3?1:0;
-    const sets=Math.max(1,baseSets+levelDelta+phaseDelta-(underRecovered||deload?1:0)+(progressing&&!deload&&index<2?1:0));
-    return {...definition,sets,reps,restSeconds:rest};
+    const dose=doseFor(profile.goal,role,phase);
+    return {...definition,role,...dose,progressionNote:progressionFor(id,role,logs)};
   });
   const adjustment=deload
-    ? '进入 8 周周期的减载周：每个动作减少 1 组，总时长下调约 28%，为下一周期恢复训练储备。'
-    : underRecovered
-    ? '根据最近一次完成度或 RPE，今天每个动作减少 1 组、总时长下调约 18%。'
-    : progressing
-      ? '最近两次完成度高且主观强度适中，今天前两个主动作各增加 1 组。'
-      : '按当前目标、训练频率和器械生成；完成后将根据 RPE 与完成度调整下一次。';
+    ? `检测到 ${signals} 项累计疲劳信号，生成主动减载建议：保留动作，工作组数降低约 30%–50%，目标 RPE 6。`
+    : profile.level==='beginner'
+      ? '新手采用主项线性进阶、辅助动作双重进阶；不机械安排整周减载，单动作连续失败两次才降重。'
+      : phase==='评估'
+        ? '本周为评估检查点：减少少量训练量并核对 e1RM、RPE、完成率和恢复；没有累计疲劳就不自动减载。'
+        : `当前为${phase}阶段；按 RPE/RIR 和最近两次动作表现决定保持、加重或单动作回退。`;
   return {
-    id:`${date}-${profile.goal}-${slot}`,date,title:recipe.title,focus:recipe.focus,week,phase,
-    durationMinutes:duration,estimatedCalories:estimateCalories(recipe.met,profile.weightKg,duration),
-    circuit:Boolean(recipe.circuit),recovery:false,adjustment,exercises,
+    id:`${date}-${profile.goal}-${slot}`,date,title:selected.title,focus:selected.focus,objective:selected.objective,week,phase,split:splitLabel(profile.daysPerWeek),evidenceIds:['acsm-2026',profile.goal==='hypertrophy'?'iusca-2021':'autoreg-2021'],
+    durationMinutes:duration,estimatedCalories:estimateCalories(selected.met,profile.weightKg,duration),
+    circuit:Boolean(selected.circuit||profile.goal==='circuit'),recovery:false,adjustment,exercises,
   };
 }
 
@@ -260,6 +358,31 @@ export function weekSessions(profile:TrainingProfile,anchor:Date,logs:WorkoutLog
     const date=new Date(monday); date.setDate(monday.getDate()+index);
     return buildSession(profile,date,logs);
   });
+}
+
+function nextMonday(dateValue:Date) {
+  const value=new Date(dateValue);
+  const days=(8-value.getDay())%7||7;
+  value.setDate(value.getDate()+days);
+  return localDate(value);
+}
+
+export function createPlanProposal(before:TrainingProfile,after:TrainingProfile,summary:string,rationale:string[],changeType:'dose'|'structure',now=new Date()):PlanProposal {
+  return {
+    id:`proposal-${now.getTime()}`,createdAt:now.getTime(),status:'pending',changeType,summary,rationale,
+    evidenceIds:['acsm-2026','autoreg-2021',...(rationale.some((item)=>item.includes('减载'))?['deload-2022']:[])],
+    before,after,effectiveFrom:changeType==='structure'?nextMonday(now):localDate(now),
+  };
+}
+
+export function acceptPlanProposal(proposal:PlanProposal,versions:PlanVersion[],now=Date.now()) {
+  const previous=versions.at(-1);
+  const version:PlanVersion={
+    id:`plan-v${(previous?.version??0)+1}-${now}`,version:(previous?.version??0)+1,createdAt:now,
+    effectiveFrom:proposal.effectiveFrom,profile:proposal.after,reason:proposal.summary,evidenceIds:proposal.evidenceIds,
+    previousVersionId:previous?.id,
+  };
+  return {proposal:{...proposal,status:'accepted' as const},version,versions:[...versions,version]};
 }
 
 export function recoveryRecommendations(session:TrainingSession):RecoveryRecommendation[] {

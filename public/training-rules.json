@@ -1,0 +1,440 @@
+{
+  "generatedAt": "2026-08-28T11:59:07.365Z",
+  "rules": [
+    {
+      "id": "evidence-source-required",
+      "cardId": "evidence-levels",
+      "condition": "任何规则进入训练引擎",
+      "target": "requiredSourceCount",
+      "min": 1,
+      "max": 8,
+      "priority": 100,
+      "sourceIds": [
+        "acsm-2026"
+      ]
+    },
+    {
+      "id": "evidence-uncertainty-required",
+      "cardId": "evidence-levels",
+      "condition": "证据主要来自观察或实践资料",
+      "target": "uncertaintyVisible",
+      "min": 1,
+      "max": 1,
+      "priority": 100,
+      "sourceIds": [
+        "deload-2022"
+      ]
+    },
+    {
+      "id": "frequency-min-2",
+      "cardId": "volume-load-frequency",
+      "condition": "一般成年训练者且目标包含力量或增肌",
+      "target": "weeklyMuscleFrequency",
+      "min": 2,
+      "max": 4,
+      "priority": 90,
+      "sourceIds": [
+        "acsm-2026"
+      ]
+    },
+    {
+      "id": "strength-heavy-load",
+      "cardId": "volume-load-frequency",
+      "condition": "目标为最大力量且动作技术稳定",
+      "target": "mainLiftPercent1RM",
+      "min": 80,
+      "max": 92,
+      "priority": 80,
+      "sourceIds": [
+        "acsm-2026"
+      ]
+    },
+    {
+      "id": "hypertrophy-volume-distribution",
+      "cardId": "volume-load-frequency",
+      "condition": "目标为增肌且恢复正常",
+      "target": "weeklyHardSetsPerMuscle",
+      "min": 8,
+      "max": 14,
+      "priority": 70,
+      "sourceIds": [
+        "acsm-2026",
+        "iusca-2021"
+      ]
+    },
+    {
+      "id": "rpe-load-hold",
+      "cardId": "rpe-rir-autoregulation",
+      "condition": "完成计划且末组RPE为8至9",
+      "target": "nextLoadChangePercent",
+      "min": 0,
+      "max": 0,
+      "priority": 80,
+      "sourceIds": [
+        "autoreg-2021"
+      ]
+    },
+    {
+      "id": "rpe-load-increase",
+      "cardId": "rpe-rir-autoregulation",
+      "condition": "连续两次完成上限次数且RPE不高于8",
+      "target": "nextLoadChangePercent",
+      "min": 2,
+      "max": 5,
+      "priority": 85,
+      "sourceIds": [
+        "autoreg-2021",
+        "acsm-2026"
+      ]
+    },
+    {
+      "id": "rpe-load-reduce",
+      "cardId": "rpe-rir-autoregulation",
+      "condition": "未完成最低次数且RPE至少9或技术破坏",
+      "target": "sameDayLoadReductionPercent",
+      "min": 5,
+      "max": 10,
+      "priority": 95,
+      "sourceIds": [
+        "autoreg-2021"
+      ]
+    },
+    {
+      "id": "cover-major-patterns",
+      "cardId": "movement-patterns-and-machines",
+      "condition": "生成一周训练",
+      "target": "coveredMovementPatterns",
+      "min": 6,
+      "max": 9,
+      "priority": 90,
+      "sourceIds": [
+        "acsm-2026"
+      ]
+    },
+    {
+      "id": "prefer-available-stable-equipment",
+      "cardId": "movement-patterns-and-machines",
+      "condition": "健身房或混合器械且用户无专项限制",
+      "target": "machineExerciseSharePercent",
+      "min": 55,
+      "max": 85,
+      "priority": 75,
+      "sourceIds": [
+        "acsm-2026",
+        "wger"
+      ]
+    },
+    {
+      "id": "split-2-fullbody",
+      "cardId": "split-selection",
+      "condition": "每周可训练2天",
+      "target": "splitCode",
+      "min": 2,
+      "max": 2,
+      "priority": 100,
+      "sourceIds": [
+        "acsm-2026",
+        "bbm-beginner"
+      ]
+    },
+    {
+      "id": "split-3-fullbody",
+      "cardId": "split-selection",
+      "condition": "每周可训练3天",
+      "target": "splitCode",
+      "min": 3,
+      "max": 3,
+      "priority": 100,
+      "sourceIds": [
+        "acsm-2026",
+        "gzcl-public"
+      ]
+    },
+    {
+      "id": "split-4-upper-lower",
+      "cardId": "split-selection",
+      "condition": "每周可训练4天",
+      "target": "splitCode",
+      "min": 4,
+      "max": 4,
+      "priority": 100,
+      "sourceIds": [
+        "acsm-2026",
+        "tsa-freebies"
+      ]
+    },
+    {
+      "id": "split-5-upper-lower-conditioning",
+      "cardId": "split-selection",
+      "condition": "每周可训练5天且目标包含体能",
+      "target": "splitCode",
+      "min": 5,
+      "max": 5,
+      "priority": 100,
+      "sourceIds": [
+        "acsm-2026"
+      ]
+    },
+    {
+      "id": "split-6-ppl",
+      "cardId": "split-selection",
+      "condition": "每周可训练6天且恢复条件良好",
+      "target": "splitCode",
+      "min": 6,
+      "max": 6,
+      "priority": 100,
+      "sourceIds": [
+        "iusca-2021"
+      ]
+    },
+    {
+      "id": "main-linear-progression",
+      "cardId": "progressive-overload",
+      "condition": "新手主项完成全部目标组次",
+      "target": "loadIncrementPercent",
+      "min": 2,
+      "max": 5,
+      "priority": 90,
+      "sourceIds": [
+        "acsm-2026",
+        "autoreg-2021"
+      ]
+    },
+    {
+      "id": "accessory-double-progression",
+      "cardId": "progressive-overload",
+      "condition": "辅助动作达到次数区间上限",
+      "target": "loadIncrementPercent",
+      "min": 2,
+      "max": 5,
+      "priority": 85,
+      "sourceIds": [
+        "acsm-2026"
+      ]
+    },
+    {
+      "id": "repeated-failure-reset",
+      "cardId": "progressive-overload",
+      "condition": "同一动作连续两次未完成最低目标次数",
+      "target": "loadResetPercent",
+      "min": 5,
+      "max": 10,
+      "priority": 95,
+      "sourceIds": [
+        "autoreg-2021",
+        "liftosaur"
+      ]
+    },
+    {
+      "id": "novice-no-fixed-deload",
+      "cardId": "periodization-and-deload",
+      "condition": "新手且无累计疲劳信号",
+      "target": "scheduledDeloadWeeks",
+      "min": 0,
+      "max": 0,
+      "priority": 100,
+      "sourceIds": [
+        "acsm-2026",
+        "deload-2022"
+      ]
+    },
+    {
+      "id": "intermediate-deload-checkpoint",
+      "cardId": "periodization-and-deload",
+      "condition": "中级训练块进入第4至8周",
+      "target": "deloadReviewWeek",
+      "min": 4,
+      "max": 8,
+      "priority": 80,
+      "sourceIds": [
+        "deload-2022"
+      ]
+    },
+    {
+      "id": "reactive-deload-trigger",
+      "cardId": "periodization-and-deload",
+      "condition": "最近训练出现表现RPE疼痛睡眠或压力信号",
+      "target": "requiredFatigueSignals",
+      "min": 2,
+      "max": 3,
+      "priority": 100,
+      "sourceIds": [
+        "deload-2022"
+      ]
+    },
+    {
+      "id": "active-deload-dose",
+      "cardId": "periodization-and-deload",
+      "condition": "用户接受主动减载建议",
+      "target": "volumeReductionPercent",
+      "min": 30,
+      "max": 50,
+      "priority": 100,
+      "sourceIds": [
+        "deload-2022",
+        "deload-rct-2024"
+      ]
+    },
+    {
+      "id": "conditioning-low-skill",
+      "cardId": "concurrent-training",
+      "condition": "力量与耐力并行且同日训练",
+      "target": "conditioningMinutes",
+      "min": 10,
+      "max": 25,
+      "priority": 65,
+      "sourceIds": [
+        "acsm-2026",
+        "physiology-exercise"
+      ]
+    },
+    {
+      "id": "concurrent-recovery-spacing",
+      "cardId": "concurrent-training",
+      "condition": "高强度下肢力量与高强度体能并行",
+      "target": "minimumSpacingHours",
+      "min": 6,
+      "max": 48,
+      "priority": 70,
+      "sourceIds": [
+        "physiology-exercise"
+      ]
+    },
+    {
+      "id": "daily-energy-remaining",
+      "cardId": "energy-balance",
+      "condition": "已记录当天饮食",
+      "target": "remainingCalories",
+      "min": -5000,
+      "max": 5000,
+      "priority": 75,
+      "sourceIds": [
+        "human-nutrition"
+      ]
+    },
+    {
+      "id": "no-single-meal-training-change",
+      "cardId": "energy-balance",
+      "condition": "仅单餐或单日摄入偏差",
+      "target": "automaticTrainingChanges",
+      "min": 0,
+      "max": 0,
+      "priority": 100,
+      "sourceIds": [
+        "human-nutrition"
+      ]
+    },
+    {
+      "id": "trend-based-energy-adjustment",
+      "cardId": "energy-balance",
+      "condition": "连续记录饮食体重和恢复至少7天",
+      "target": "assessmentWindowDays",
+      "min": 7,
+      "max": 21,
+      "priority": 80,
+      "sourceIds": [
+        "human-nutrition",
+        "issn-nutrient-timing-2017"
+      ]
+    },
+    {
+      "id": "protein-target-range",
+      "cardId": "protein-and-carbohydrate",
+      "condition": "规律抗阻训练",
+      "target": "proteinGramsPerKg",
+      "min": 1.6,
+      "max": 2.2,
+      "priority": 85,
+      "sourceIds": [
+        "issn-protein-2017"
+      ]
+    },
+    {
+      "id": "carb-training-support",
+      "cardId": "protein-and-carbohydrate",
+      "condition": "当天或次日有训练",
+      "target": "carbohydrateGramsPerKg",
+      "min": 2,
+      "max": 5,
+      "priority": 65,
+      "sourceIds": [
+        "issn-nutrient-timing-2017",
+        "human-nutrition"
+      ]
+    },
+    {
+      "id": "meal-macro-repair",
+      "cardId": "protein-and-carbohydrate",
+      "condition": "当天仍有剩余餐次且宏量营养偏差",
+      "target": "remainingMealAdjustment",
+      "min": 1,
+      "max": 3,
+      "priority": 75,
+      "sourceIds": [
+        "issn-protein-2017",
+        "human-nutrition"
+      ]
+    },
+    {
+      "id": "keep-plan",
+      "cardId": "decision-rules",
+      "condition": "表现稳定且疲劳信号少于2项",
+      "target": "planChange",
+      "min": 0,
+      "max": 0,
+      "priority": 90,
+      "sourceIds": [
+        "autoreg-2021",
+        "acsm-2026"
+      ]
+    },
+    {
+      "id": "session-reduce",
+      "cardId": "decision-rules",
+      "condition": "当日准备度低但无持续伤痛",
+      "target": "sessionVolumeReductionPercent",
+      "min": 20,
+      "max": 35,
+      "priority": 90,
+      "sourceIds": [
+        "autoreg-2021"
+      ]
+    },
+    {
+      "id": "exercise-reset",
+      "cardId": "decision-rules",
+      "condition": "单动作连续两次失败",
+      "target": "loadResetPercent",
+      "min": 5,
+      "max": 10,
+      "priority": 95,
+      "sourceIds": [
+        "autoreg-2021"
+      ]
+    },
+    {
+      "id": "deload-proposal",
+      "cardId": "decision-rules",
+      "condition": "至少2项累计疲劳信号",
+      "target": "proposalRequired",
+      "min": 1,
+      "max": 1,
+      "priority": 100,
+      "sourceIds": [
+        "deload-2022"
+      ]
+    },
+    {
+      "id": "structural-change-next-week",
+      "cardId": "decision-rules",
+      "condition": "用户接受分化频率目标或周期调整",
+      "target": "effectiveDayOffset",
+      "min": 1,
+      "max": 7,
+      "priority": 100,
+      "sourceIds": [
+        "acsm-2026"
+      ]
+    }
+  ]
+}
