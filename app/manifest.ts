@@ -2,13 +2,13 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name:'热量镜',
-    short_name:'热量镜',
-    description:'拍照识别食物，本地营养数据优先，支持逐项校正克数。',
+    name:'练途 · 自适应训练计划',
+    short_name:'练途',
+    description:'按实时日期安排器械训练，联动训练、饮食和体成分记录调整计划。',
     start_url:'/',
     display:'standalone',
-    background_color:'#f4faf7',
-    theme_color:'#1f654e',
+    background_color:'#f5f7f5',
+    theme_color:'#205d47',
     orientation:'portrait',
     icons:[
       { src:'/icon-192.png',sizes:'192x192',type:'image/png',purpose:'maskable' },
