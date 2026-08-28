@@ -22,6 +22,12 @@ const http=async(url:string,method:'GET'|'POST',headers:Record<string,string>,bo
 
 responses.push({choices:[{message:{content:'chat-ok'}}]});
 assert.equal(await requestProviderModel({connection:base,system:'system',text:'hello',maxTokens:100,temperature:0},http),'chat-ok');
+
+responses.push({choices:[{message:{content:null,reasoning_content:'{"reply":"structured-fallback"}'}}]});
+assert.equal(await requestProviderModel({connection:base,text:'hello',maxTokens:100,temperature:0},http),'{"reply":"structured-fallback"}');
+
+responses.push({data:{choices:[{message:{content:[{type:'text',text:'nested-chat'}]}}]}});
+assert.equal(await requestProviderModel({connection:base,text:'hello',maxTokens:100,temperature:0},http),'nested-chat');
 assert.equal(calls.at(-1)?.headers.Authorization,'Bearer secret');
 assert.equal(calls.at(-1)?.headers['X-App'],'liantu');
 

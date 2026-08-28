@@ -13,10 +13,13 @@ import {
   mainLiftLabels, MainLiftKey, PlanProposal, PlanVersion, recoveryRecommendations, splitLabel, TrainingDayCount, TrainingGoal, TrainingProfile, TrainingSession, WorkoutLog,
 } from '@/lib/training';
 
-type Tab = 'today' | 'plan' | 'nutrition' | 'body' | 'settings';
+type Tab = 'today' | 'plan' | 'nutrition' | 'coach' | 'body' | 'settings';
 type Settings = ModelConnection & { target:number };
 type BodyMetric = { id:string;date:string;weightKg:number;bodyFatPercent:number;muscleMassKg:number;visceralFat:number;bmr:number;source:'report'|'manual';confidence:number;note:string;createdAt:number;reportType?:'body_composition'|'checkup' };
 type CoachPlan = { goal:TrainingGoal;daysPerWeek:TrainingDayCount;sessionMinutes:number;cycle:string;deload:string;rationale:string[];nutritionFocus:string;changeType?:'dose'|'structure' };
+type EnergyAdjustment = { id:string;date:string;kcal:number;note:string;createdAt:number };
+type ChatAction = {type:'profile';weightKg?:number;sleepHours?:number}|{type:'energy';kcal:number;note:string}|{type:'plan';goal?:TrainingGoal;daysPerWeek?:TrainingDayCount;sessionMinutes?:number;rationale:string};
+type ChatMessage = {id:string;role:'user'|'assistant';text:string;createdAt:number;action?:ChatAction;applied?:boolean};
 
 const SETTINGS_KEY='calorielens.settings.v1';
 const MEALS_KEY='calorielens.meals.v1';
@@ -26,6 +29,8 @@ const BODY_KEY='liantu.body-metrics.v1';
 const PLAN_VERSIONS_KEY='liantu.plan-versions.v1';
 const PLAN_PROPOSALS_KEY='liantu.plan-proposals.v1';
 const ONBOARDING_KEY='liantu.onboarding.v1';
+const ENERGY_KEY='liantu.energy-adjustments.v1';
+const CHAT_KEY='liantu.coach-chat.v1';
 
 const defaultSettings:Settings={
   providerId:'zhipu',protocol:'openai_chat',endpoint:'https://open.bigmodel.cn/api/paas/v4/chat/completions',
@@ -39,6 +44,12 @@ const localDateKey=(time:number|Date) => {
 };
 const dateTitle=(date:Date) => date.toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'});
 const fixed=(value:number,digits=0) => value.toLocaleString('zh-CN',{maximumFractionDigits:digits,minimumFractionDigits:digits});
+const parseJsonObject=(content:string)=>{
+  const cleaned=content.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
+  const start=cleaned.indexOf('{'),end=cleaned.lastIndexOf('}');
+  if(start<0||end<=start)throw new Error('模型返回了文本，但没有可解析的 JSON 内容');
+  return JSON.parse(cleaned.slice(start,end+1)) as Record<string,unknown>;
+};
 
 async function imageToData(file:File) {
   const objectUrl=URL.createObjectURL(file);
@@ -95,6 +106,12 @@ export default function Home() {
   const [bodyImageData,setBodyImageData]=useState('');
   const [reportType,setReportType]=useState<'body_composition'|'checkup'>('body_composition');
   const [pendingBody,setPendingBody]=useState<Omit<BodyMetric,'id'|'createdAt'>>({date:localDateKey(new Date()),weightKg:0,bodyFatPercent:0,muscleMassKg:0,visceralFat:0,bmr:0,source:'manual',confidence:100,note:''});
+  const [energyAdjustments,setEnergyAdjustments]=useState<EnergyAdjustment[]>([]);
+  const [energyInput,setEnergyInput]=useState('');
+  const [energyNote,setEnergyNote]=useState('');
+  const [chatMessages,setChatMessages]=useState<ChatMessage[]>([]);
+  const [chatInput,setChatInput]=useState('');
+  const [connectionTest,setConnectionTest]=useState<{kind:'testing'|'success'|'error';message:string}|null>(null);
 
   useEffect(()=>{
     if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>undefined);
@@ -103,6 +120,7 @@ export default function Home() {
         const savedSettings=localStorage.getItem(SETTINGS_KEY),savedMeals=localStorage.getItem(MEALS_KEY);
         const savedProfile=localStorage.getItem(PROFILE_KEY),savedLogs=localStorage.getItem(LOGS_KEY),savedBody=localStorage.getItem(BODY_KEY);
         const savedVersions=localStorage.getItem(PLAN_VERSIONS_KEY),savedProposals=localStorage.getItem(PLAN_PROPOSALS_KEY);
+        const savedEnergy=localStorage.getItem(ENERGY_KEY),savedChat=localStorage.getItem(CHAT_KEY);
         if(savedSettings)setSettings({...defaultSettings,...JSON.parse(savedSettings)});
         if(savedMeals)setMeals(JSON.parse(savedMeals));
         const parsedProfile=savedProfile?JSON.parse(savedProfile) as Partial<TrainingProfile>:null;
@@ -113,6 +131,8 @@ export default function Home() {
         if(savedVersions)setPlanVersions(JSON.parse(savedVersions));
         else setPlanVersions([{id:`plan-v1-${Date.now()}`,version:1,createdAt:Date.now(),effectiveFrom:loadedProfile.startDate,profile:loadedProfile,reason:'首次规则计划',evidenceIds:['acsm-2026','autoreg-2021']}]);
         if(savedProposals)setPlanProposals(JSON.parse(savedProposals));
+        if(savedEnergy)setEnergyAdjustments(JSON.parse(savedEnergy));
+        if(savedChat)setChatMessages(JSON.parse(savedChat));
         if(!localStorage.getItem(ONBOARDING_KEY))setShowOnboarding(true);
       }catch{setNotice('部分本机记录无法读取，已使用默认设置');}
       setReady(true);
@@ -124,6 +144,8 @@ export default function Home() {
   useEffect(()=>{if(ready)localStorage.setItem(BODY_KEY,JSON.stringify(bodyMetrics));},[bodyMetrics,ready]);
   useEffect(()=>{if(ready)localStorage.setItem(PLAN_VERSIONS_KEY,JSON.stringify(planVersions));},[planVersions,ready]);
   useEffect(()=>{if(ready)localStorage.setItem(PLAN_PROPOSALS_KEY,JSON.stringify(planProposals));},[planProposals,ready]);
+  useEffect(()=>{if(ready)localStorage.setItem(ENERGY_KEY,JSON.stringify(energyAdjustments));},[energyAdjustments,ready]);
+  useEffect(()=>{if(ready)localStorage.setItem(CHAT_KEY,JSON.stringify(chatMessages));},[chatMessages,ready]);
   useEffect(()=>{
     let cancelled=false;
     queueMicrotask(()=>{
@@ -163,10 +185,14 @@ export default function Home() {
   const todayLogs=useMemo(()=>logs.filter((log)=>log.date===todayKey),[logs,todayKey]);
   const sortedBody=useMemo(()=>[...bodyMetrics].sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt),[bodyMetrics]);
   const latestBody=sortedBody[0];
-  const burned=todayLogs.reduce((sum,log)=>sum+log.caloriesBurned,0);
-  const netBudget=settings.target+burned-totals.calories;
-  const nutritionProgress=Math.min(100,totals.calories/Math.max(1,settings.target)*100);
-  const dailyNutrition=useMemo(()=>assessDailyNutrition({totals,calorieTarget:settings.target,weightKg:todayEffectiveProfile.weightKg,goal:todayEffectiveProfile.goal,hasTraining:!todaySession.recovery}),[totals,settings.target,todayEffectiveProfile,todaySession.recovery]);
+  const trainingBurned=todayLogs.reduce((sum,log)=>sum+log.caloriesBurned,0);
+  const todayEnergyAdjustments=useMemo(()=>energyAdjustments.filter((item)=>item.date===todayKey),[energyAdjustments,todayKey]);
+  const manualBurned=todayEnergyAdjustments.reduce((sum,item)=>sum+item.kcal,0);
+  const burned=Math.max(0,trainingBurned+manualBurned);
+  const effectiveCalorieTarget=settings.target+burned;
+  const netBudget=effectiveCalorieTarget-totals.calories;
+  const nutritionProgress=Math.min(100,totals.calories/Math.max(1,effectiveCalorieTarget)*100);
+  const dailyNutrition=useMemo(()=>assessDailyNutrition({totals,calorieTarget:effectiveCalorieTarget,weightKg:todayEffectiveProfile.weightKg,goal:todayEffectiveProfile.goal,hasTraining:!todaySession.recovery}),[totals,effectiveCalorieTarget,todayEffectiveProfile,todaySession.recovery]);
 
   const saveSettings=()=>{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));setNotice('设置已保存在这台设备');};
   const selectProvider=(id:string)=>{
@@ -206,10 +232,17 @@ export default function Home() {
     setBusy('正在获取模型列表…');setNotice('');
     try{const payload=await proxy({action:'models',...settings});setModels(payload.models||[]);setNotice(`已获取 ${payload.models?.length||0} 个模型`);}catch(error){setNotice(error instanceof Error?error.message:'获取失败');}finally{setBusy('');}
   };
+  const textProbe=async()=>{
+    if(!requireConnection())return;
+    setBusy('正在测试普通文本连接…');setNotice('');setConnectionTest({kind:'testing',message:'正在发送普通文本测试，请稍候…'});
+    try{const payload=await proxy({action:'textProbe',...settings});const content=(payload.content||'').trim();setConnectionTest({kind:'success',message:`普通文本连接成功 · 模型返回：${content.slice(0,160)}`});}
+    catch(error){const message=error instanceof Error?error.message:'普通文本测试失败';setConnectionTest({kind:'error',message});setNotice(message);}finally{setBusy('');}
+  };
   const probe=async()=>{
     if(!requireConnection())return;
-    setBusy('正在验证图片能力…');setNotice('');
-    try{const payload=await proxy({action:'probe',...settings,imageData:imageData||testImageData()});setNotice(`图片测试通过：${(payload.content||'').slice(0,120)}`);}catch(error){setNotice(error instanceof Error?error.message:'测试失败');}finally{setBusy('');}
+    setBusy('正在验证图片能力…');setNotice('');setConnectionTest({kind:'testing',message:'正在发送内置红蓝测试图，请稍候…'});
+    try{const payload=await proxy({action:'probe',...settings,imageData:imageData||testImageData()});const content=(payload.content||'').trim();setConnectionTest({kind:'success',message:`视觉连接成功 · 模型返回：${content.slice(0,160)}`});}
+    catch(error){const message=error instanceof Error?error.message:'视觉测试失败';setConnectionTest({kind:'error',message});setNotice(message);}finally{setBusy('');}
   };
   const askCoach=async()=>{
     if(!requireConnection())return;
@@ -249,12 +282,13 @@ export default function Home() {
     setBusy('正在综合训练、饮食与体成分趋势制定计划…');setNotice('');
     try{
       const payload=await proxy({action:'plan',...settings,profile,currentSession:todaySession,recentLogs:logs.slice(0,8),nutrition:{...totals,target:settings.target,burned},bodyMetrics:sortedBody.slice(0,8)});
-      const raw=JSON.parse((payload.content||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'')) as CoachPlan;
+      const raw=parseJsonObject(payload.content||'') as unknown as CoachPlan;
       if(!Object.keys(goalLabels).includes(raw.goal)||![2,3,4,5,6].includes(raw.daysPerWeek))throw new Error('模型返回的计划参数无效');
       const after={...profile,goal:raw.goal,daysPerWeek:raw.daysPerWeek,sessionMinutes:Math.min(120,Math.max(20,Number(raw.sessionMinutes)||60))};
       const changeType=raw.changeType??(after.goal!==profile.goal||after.daysPerWeek!==profile.daysPerWeek?'structure':'dose');
       const proposal=createPlanProposal(profile,after,`${goalLabels[after.goal]} · ${splitLabel(after.daysPerWeek)}`,[...(Array.isArray(raw.rationale)?raw.rationale:[]),`周期：${raw.cycle}`,`减载：${raw.deload}`,`饮食：${raw.nutritionFocus}`],changeType,now);
       setCoachPlan(proposal);setPlanProposals((items)=>[proposal,...items]);
+      setNotice('模型已返回计划提案；请查看差异后选择保持原计划或应用调整');
     }catch(error){setNotice(error instanceof Error?error.message:'综合计划生成失败');}finally{setBusy('');}
   };
   const applyCoachPlan=()=>{
@@ -298,6 +332,49 @@ export default function Home() {
     setLogs((items)=>[log,...items]);setRecoveryAfter(activeSession);setActiveSession(null);setNotice(`训练已保存，估算消耗 ${log.caloriesBurned} kcal；下一次计划已重新计算`);
   };
 
+  const addEnergyAdjustment=(kcalValue?:number,noteValue?:string)=>{
+    const kcal=Math.round(kcalValue??Number(energyInput));
+    if(!Number.isFinite(kcal)||kcal===0||Math.abs(kcal)>3000)return setNotice('请输入 -3000 到 3000 之间且不为 0 的消耗修正值');
+    const entry:EnergyAdjustment={id:crypto.randomUUID(),date:todayKey,kcal,note:(noteValue??energyNote).trim()||'手动消耗修正',createdAt:Date.now()};
+    setEnergyAdjustments((items)=>[entry,...items]);setEnergyInput('');setEnergyNote('');setNotice(`已${kcal>0?'增加':'减少'} ${Math.abs(kcal)} kcal 消耗`);
+  };
+
+  const sendChat=async()=>{
+    const text=chatInput.trim();if(!text)return;
+    if(!requireConnection())return;
+    const userMessage:ChatMessage={id:crypto.randomUUID(),role:'user',text,createdAt:Date.now()};
+    setChatMessages((items)=>[...items,userMessage]);setChatInput('');setBusy('AI 教练正在回复…');setNotice('');
+    try{
+      const payload=await proxy({action:'chat',...settings,profile,currentSession:todaySession,recentLogs:logs.slice(0,8),nutrition:{...totals,target:settings.target,burned},bodyMetrics:sortedBody.slice(0,8),energyAdjustments:todayEnergyAdjustments,messages:[...chatMessages.slice(-8),userMessage].map(({role,text})=>({role,text}))});
+      const raw=parseJsonObject(payload.content||'');
+      const reply=String(raw.reply??'').trim();if(!reply)throw new Error('模型没有返回对话正文');
+      let action:ChatAction|undefined;
+      if(raw.action&&typeof raw.action==='object'){
+        const candidate=raw.action as Record<string,unknown>;
+        if(candidate.type==='profile')action={type:'profile',...(Number(candidate.weightKg)>0?{weightKg:Number(candidate.weightKg)}:{}),...(Number(candidate.sleepHours)>0?{sleepHours:Number(candidate.sleepHours)}:{})};
+        if(candidate.type==='energy'&&Number.isFinite(Number(candidate.kcal))&&Number(candidate.kcal)!==0&&Math.abs(Number(candidate.kcal))<=3000)action={type:'energy',kcal:Math.round(Number(candidate.kcal)),note:String(candidate.note??'对话记录的运动消耗')};
+        if(candidate.type==='plan')action={type:'plan',...(Object.keys(goalLabels).includes(String(candidate.goal))?{goal:String(candidate.goal) as TrainingGoal}:{}),...([2,3,4,5,6].includes(Number(candidate.daysPerWeek))?{daysPerWeek:Number(candidate.daysPerWeek) as TrainingDayCount}:{}),...(Number(candidate.sessionMinutes)>=20&&Number(candidate.sessionMinutes)<=120?{sessionMinutes:Number(candidate.sessionMinutes)}:{}),rationale:String(candidate.rationale??'根据本次对话提出')};
+      }
+      setChatMessages((items)=>[...items,{id:crypto.randomUUID(),role:'assistant',text:reply,createdAt:Date.now(),action}]);
+    }catch(error){setNotice(error instanceof Error?error.message:'AI 对话失败');}finally{setBusy('');}
+  };
+
+  const applyChatAction=(message:ChatMessage)=>{
+    const action=message.action;if(!action||message.applied)return;
+    if(action.type==='energy')addEnergyAdjustment(action.kcal,action.note);
+    if(action.type==='profile'){
+      const after={...profile,...(action.weightKg?{weightKg:Math.min(250,Math.max(30,action.weightKg))}:{}),...(action.sleepHours?{sleepHours:Math.min(12,Math.max(3,action.sleepHours))}:{})};
+      setProfile(after);setPlanVersions((items)=>{const previous=items.at(-1);return [...items,{id:`plan-v${(previous?.version??0)+1}-${Date.now()}`,version:(previous?.version??0)+1,createdAt:Date.now(),effectiveFrom:todayKey,profile:after,reason:'AI 对话确认的个人记录',evidenceIds:['autoreg-2021'],previousVersionId:previous?.id}];});
+      setNotice('已按你的确认记录体重或睡眠，并更新未来未完成训练的计算基线');
+    }
+    if(action.type==='plan'){
+      const after={...profile,...(action.goal?{goal:action.goal}:{}),...(action.daysPerWeek?{daysPerWeek:action.daysPerWeek}:{}),...(action.sessionMinutes?{sessionMinutes:action.sessionMinutes}:{})};
+      const proposal=createPlanProposal(profile,after,'AI 对话提出的计划调整',[action.rationale],'structure',now);
+      setCoachPlan(proposal);setPlanProposals((items)=>[proposal,...items]);setTab('plan');setNotice('对话建议已转为待确认计划；尚未应用');
+    }
+    setChatMessages((items)=>items.map((item)=>item.id===message.id?{...item,applied:true}:item));
+  };
+
   const stageManualPlan=(after:TrainingProfile,summary:string)=>{
     const proposal=createPlanProposal(profile,after,summary,['由用户主动修改计划参数，应用前显示差异'],'structure',now);
     setCoachPlan(proposal);setPlanProposals((items)=>[proposal,...items]);setNotice('修改已放入待确认建议；接受后才会更新未来日历。');
@@ -319,7 +396,7 @@ export default function Home() {
     setNotice(destination==='body'?'基础计划已生成；报告可识别也可跳过。':'基础计划已生成，之后可随时提出并确认调整。');
   };
 
-  const titles:Record<Tab,string>={today:'今日训练',plan:'训练计划',nutrition:'热量镜',body:'身体趋势',settings:'我的设置'};
+  const titles:Record<Tab,string>={today:'今日训练',plan:'训练计划',nutrition:'热量镜',coach:'AI 教练',body:'身体趋势',settings:'我的设置'};
   return <main className="app-shell">
     <header className="topbar"><div><p className="eyebrow">练途 · TRAIN WITH A PLAN</p><h1>{titles[tab]}</h1></div>{tab!=='today'&&<button className="text-button" onClick={()=>setTab('today')}>完成</button>}</header>
     {notice&&<div className="notice" role="status"><span>{notice}</span><button onClick={()=>setNotice('')} aria-label="关闭提示">×</button></div>}
@@ -335,9 +412,9 @@ export default function Home() {
       </section>
       <section className="energy-card">
         <div className="section-row"><div><p className="section-kicker">能量联动</p><h2>摄入与消耗</h2></div><button onClick={()=>setTab('nutrition')}>打开热量镜</button></div>
-        <div className="energy-equation"><span><b>{fixed(totals.calories)}</b>已摄入</span><i>−</i><span><b>{burned}</b>训练消耗</span><i>=</i><span className="net"><b>{fixed(totals.calories-burned)}</b>净摄入</span></div>
+        <div className="energy-equation"><span><b>{fixed(totals.calories)}</b>已摄入</span><i>−</i><span><b>{burned}</b>总消耗</span><i>=</i><span className="net"><b>{fixed(totals.calories-burned)}</b>净摄入</span></div>
         <div className="energy-bar"><i style={{width:`${Math.min(100,totals.calories/Math.max(1,settings.target+burned)*100)}%`}}/></div>
-        <p>按当前目标还可安排约 <strong>{fixed(netBudget)} kcal</strong>；训练消耗为基于体重、时长和 MET 的估算值。</p>
+        <p>按当前目标还可安排约 <strong>{fixed(netBudget)} kcal</strong>；训练估算 {trainingBurned} kcal，手动修正 {manualBurned>=0?'+':''}{manualBurned} kcal。</p>
       </section>
       <section className="session-list-card"><div className="section-row"><div><p className="section-kicker">本次内容</p><h2>{todaySession.circuit?'按轮循环':'按顺序完成'}</h2></div><span>{todaySession.exercises.reduce((sum,item)=>sum+item.sets,0)} 组</span></div>
         <div className="exercise-preview-list">{todaySession.exercises.map((exercise,index)=><button key={exercise.id} onClick={()=>setDetail(exercise)}><ExerciseThumb exercise={exercise}/><span>{String(index+1).padStart(2,'0')}</span><div><b>{exercise.name}</b><small>{exercise.sets} 组 × {exercise.reps} · 休息 {exercise.restSeconds} 秒</small></div><i>›</i></button>)}</div>
@@ -360,12 +437,19 @@ export default function Home() {
     </section>}
 
     {tab==='nutrition'&&<>
-      <section className="nutrition-summary"><div className="calorie-ring" style={{'--progress':`${nutritionProgress*3.6}deg`} as React.CSSProperties}><span>今日已记录</span><strong>{fixed(totals.calories)}</strong><small>/ {settings.target} kcal</small></div><div className="macro-list"><div><i className="protein"/><span>蛋白质</span><b>{fixed(totals.protein,1)}g</b></div><div><i className="carbs"/><span>碳水</span><b>{fixed(totals.carbs,1)}g</b></div><div><i className="fat"/><span>脂肪</span><b>{fixed(totals.fat,1)}g</b></div></div></section>
+      <section className="nutrition-summary"><div className="calorie-ring" style={{'--progress':`${nutritionProgress*3.6}deg`} as React.CSSProperties}><span>今日已记录</span><strong>{fixed(totals.calories)}</strong><small>/ {effectiveCalorieTarget} kcal</small></div><div className="macro-list"><div><i className="protein"/><span>蛋白质</span><b>{fixed(totals.protein,1)}g</b></div><div><i className="carbs"/><span>碳水</span><b>{fixed(totals.carbs,1)}g</b></div><div><i className="fat"/><span>脂肪</span><b>{fixed(totals.fat,1)}g</b></div></div></section>
+      <section className="energy-adjust-card"><div className="section-row"><div><p className="section-kicker">今日活动消耗</p><h2>{burned} kcal</h2></div><span>训练 {trainingBurned} · 修正 {manualBurned>=0?'+':''}{manualBurned}</span></div><p>完成训练后会自动按体重、时长和完成度写入；手环或器械数据不一致时可输入正数增加、负数减少。</p><div className="form-grid"><label>增减 kcal<input type="number" inputMode="numeric" value={energyInput} onChange={(event)=>setEnergyInput(event.target.value)} placeholder="例如 120 或 -80"/></label><label>说明<input value={energyNote} onChange={(event)=>setEnergyNote(event.target.value)} placeholder="例如 手环修正"/></label></div><button className="secondary-action action-button" onClick={()=>addEnergyAdjustment()}>记入今天消耗</button>{todayEnergyAdjustments.length>0&&<div className="energy-adjust-list">{todayEnergyAdjustments.map((item)=><article key={item.id}><span><b>{item.kcal>0?'+':''}{item.kcal} kcal</b><small>{item.note}</small></span><button onClick={()=>setEnergyAdjustments((items)=>items.filter((entry)=>entry.id!==item.id))}>删除</button></article>)}</div>}</section>
       <section className="proposal-card"><div className="section-row"><div><p className="section-kicker">今天怎么继续吃</p><h2>{dailyNutrition.status==='over'?'后续餐做减法':dailyNutrition.status==='insufficient'?'后续餐补足缺口':'今日接近目标'}</h2></div><span>{dailyNutrition.caloriesRemaining>=0?'还可':'超出'} {Math.abs(dailyNutrition.caloriesRemaining)} kcal</span></div><p>蛋白质目标 {dailyNutrition.proteinTarget}g，仍差 {Math.max(0,dailyNutrition.proteinRemaining)}g；碳水目标 {dailyNutrition.carbsTarget}g，仍差 {Math.max(0,dailyNutrition.carbsRemaining)}g。</p><ul>{dailyNutrition.nextMealAdvice.map((item)=><li key={item}>{item}</li>)}</ul><p className="rule-note">{dailyNutrition.recoveryImpact}</p></section>
       {!currentMeal&&<section className="capture-card">{imageData?<img className="photo-preview" src={imageData} alt="待分析的餐食照片"/>:<div className="camera-mark">⌾</div>}<p className="section-kicker">热量镜 v0.3.5 · 本地营养优先</p><h2>{imageData?'照片已准备好':'拍下这一餐'}</h2><p className="muted">按餐具尺寸、体积、密度中位值估重；识别后可逐项校正克数、倍率和调味料。</p>{isNativeApp()?<button className={imageData?'secondary-action action-button':'primary-action action-button'} onClick={()=>choosePhotoNative('meal')}>{imageData?'重新选择照片':'拍照或选择照片'}</button>:<label className={imageData?'secondary-action':'primary-action'}><input type="file" accept="image/*" capture="environment" onChange={(event)=>choosePhoto(event.target.files?.[0])}/>{imageData?'重新选择照片':'拍照或选择照片'}</label>}{imageData&&<button className="primary-action action-button" onClick={analyze}>开始分析</button>}</section>}
       {currentMeal&&<ResultCard meal={currentMeal} imageData={imageData} updateGrams={updateGrams} saveMeal={saveMeal} reset={()=>{setCurrentMeal(null);setImageData('');}}/>}
       <Diary meals={meals} onDelete={(id)=>setMeals((items)=>items.filter((meal)=>meal.id!==id))}/>
     </>}
+
+    {tab==='coach'&&<section className="coach-chat-page">
+      <section className="coach-chat-intro"><div className="coach-orb">AI</div><div><p className="section-kicker">自由对话</p><h2>和模型讨论训练与记录</h2><p>可以直接说“我昨晚睡了 6.5 小时”“手环显示多消耗 180 kcal”或“下周只能练三天”。模型只生成待确认操作，不会静默改计划。</p></div></section>
+      <section className="chat-thread">{chatMessages.length===0&&<div className="chat-empty"><b>从一句自然语言开始</b><span>例如：今天卧推最后两组 RPE 9，下周时间也比较紧，应该怎么调？</span></div>}{chatMessages.map((message)=><article key={message.id} className={message.role}><div><small>{message.role==='user'?'我':'AI 教练'}</small><p>{message.text}</p>{message.action&&<section className="chat-action"><b>{message.action.type==='profile'?'待确认个人记录':message.action.type==='energy'?'待确认消耗记录':'待确认计划调整'}</b><span>{message.action.type==='profile'?`${message.action.weightKg?`体重 ${message.action.weightKg} kg `:''}${message.action.sleepHours?`睡眠 ${message.action.sleepHours} 小时`:''}`:message.action.type==='energy'?`${message.action.kcal>0?'+':''}${message.action.kcal} kcal · ${message.action.note}`:`${message.action.goal?goalLabels[message.action.goal]:goalLabels[profile.goal]} · ${message.action.daysPerWeek??profile.daysPerWeek} 天/周 · ${message.action.sessionMinutes??profile.sessionMinutes} 分钟`}</span><button disabled={message.applied} onClick={()=>applyChatAction(message)}>{message.applied?'已确认':message.action.type==='plan'?'生成待确认计划':'确认记录'}</button></section>}</div></article>)}</section>
+      <section className="chat-composer"><textarea value={chatInput} onChange={(event)=>setChatInput(event.target.value)} placeholder="输入训练感受、饮食、睡眠、体重或时间安排…"/><button onClick={sendChat} disabled={!chatInput.trim()||Boolean(busy)}>发送</button></section>
+    </section>}
 
     {tab==='body'&&<section className="body-stack">
       <section className="body-overview"><div><p className="section-kicker">最新体成分</p><h2>{latestBody?latestBody.date:'等待首次记录'}</h2></div>{latestBody?<div className="body-metrics"><article><span>体重</span><b>{fixed(latestBody.weightKg,1)}<small> kg</small></b></article><article><span>体脂率</span><b>{fixed(latestBody.bodyFatPercent,1)}<small> %</small></b></article><article><span>肌肉量</span><b>{fixed(latestBody.muscleMassKg,1)}<small> kg</small></b></article></div>:<p>上传八电极体成分报告截图，或直接手工录入。</p>}</section>
@@ -375,14 +459,14 @@ export default function Home() {
     </section>}
 
     {tab==='settings'&&<section className="settings-stack">
-      <div className="settings-card"><p className="section-kicker">个人训练参数</p><h2>用于计划与消耗估算</h2><div className="form-grid"><label>体重（kg）<input type="number" min="30" max="250" value={profile.weightKg} onChange={(event)=>setProfile({...profile,weightKg:Math.max(30,Number(event.target.value)||65)})}/></label><label>单次时长（分钟）<input type="number" min="20" max="120" value={profile.sessionMinutes} onChange={(event)=>setProfile({...profile,sessionMinutes:Math.max(20,Number(event.target.value)||45)})}/></label></div><div className="segment-row"><span>训练水平</span><div><button className={profile.level==='beginner'?'active':''} onClick={()=>setProfile({...profile,level:'beginner'})}>初学</button><button className={profile.level==='intermediate'?'active':''} onClick={()=>setProfile({...profile,level:'intermediate'})}>进阶</button></div></div></div>
+      <div className="settings-card"><p className="section-kicker">个人训练参数</p><h2>用于计划与消耗估算</h2><div className="form-grid"><label>体重（kg）<input type="number" inputMode="decimal" value={profile.weightKg||''} onChange={(event)=>setProfile({...profile,weightKg:event.target.value===''?0:Number(event.target.value)})} onBlur={()=>setProfile({...profile,weightKg:Math.min(250,Math.max(30,profile.weightKg||65))})}/></label><label>平均睡眠（小时）<input type="number" inputMode="decimal" step="0.1" value={profile.sleepHours??''} onChange={(event)=>setProfile({...profile,sleepHours:event.target.value===''?undefined:Number(event.target.value)})} onBlur={()=>setProfile({...profile,sleepHours:Math.min(12,Math.max(3,profile.sleepHours??7.5))})}/></label><label>单次时长（分钟）<input type="number" inputMode="numeric" value={profile.sessionMinutes||''} onChange={(event)=>setProfile({...profile,sessionMinutes:event.target.value===''?0:Number(event.target.value)})} onBlur={()=>setProfile({...profile,sessionMinutes:Math.min(120,Math.max(20,profile.sessionMinutes||45))})}/></label></div><p className="field-help">输入时可以先清空旧值；离开输入框后才检查合理范围。</p><div className="segment-row"><span>训练水平</span><div><button className={profile.level==='beginner'?'active':''} onClick={()=>setProfile({...profile,level:'beginner'})}>初学</button><button className={profile.level==='intermediate'?'active':''} onClick={()=>setProfile({...profile,level:'intermediate'})}>进阶</button></div></div></div>
       <div className="settings-card"><p className="section-kicker">主要动作基线</p><h2>更新 1RM 与建议重量</h2><p className="field-help">填写近期动作规范的一次最大重量；不建议用动作变形或疼痛状态下的重量。RDL 会按硬拉 1RM 保守换算。</p><OneRmFields profile={profile} onChange={(key,value)=>setProfile({...profile,mainLift1RM:{...profile.mainLift1RM,[key]:value}})}/><button className="primary-action action-button" onClick={saveStrengthBaselines}>保存并重算未来重量</button></div>
-      <div className="settings-card model-settings"><div className="section-row"><div><p className="section-kicker">模型连接</p><h2>供应商与本地端口</h2></div><span>{protocolLabels[settings.protocol]}</span></div><div className="provider-grid">{providerPresets.map((preset)=><button key={preset.id} className={settings.providerId===preset.id?'active':''} onClick={()=>selectProvider(preset.id)}><b>{preset.name}</b><small>{preset.subtitle}</small></button>)}</div><div className="form-grid"><label>连接协议<select value={settings.protocol} onChange={(event)=>setSettings({...settings,providerId:'custom',protocol:event.target.value as ProviderProtocol})}>{(Object.keys(protocolLabels) as ProviderProtocol[]).map((protocol)=><option key={protocol} value={protocol}>{protocolLabels[protocol]}</option>)}</select></label><label>模型名称<input list="models" value={settings.model} onChange={(event)=>setSettings({...settings,model:event.target.value})} placeholder="可手工输入模型 ID"/></label></div><datalist id="models">{models.map((model)=><option key={model} value={model}/>)}</datalist><label>Base URL / 完整端点<input value={settings.endpoint} onChange={(event)=>setSettings({...settings,providerId:'custom',endpoint:event.target.value})} placeholder="https://… 或 APK 内 http://192.168…:11434"/></label><label>API 密钥（本地模型可留空）<input type="password" autoComplete="off" placeholder="仅保存在这台设备" value={settings.apiKey} onChange={(event)=>setSettings({...settings,apiKey:event.target.value})}/></label><details className="advanced-settings"><summary>高级：自定义请求头</summary><label>JSON 请求头<textarea value={settings.customHeaders} onChange={(event)=>setSettings({...settings,customHeaders:event.target.value})} placeholder={'{"HTTP-Referer":"https://example.com","X-Title":"练途"}'}/></label><p>用于网关、反向代理或供应商附加鉴权；自定义值会覆盖协议默认请求头。</p></details><div className="two-buttons"><button className="secondary-action action-button" onClick={fetchModels}>刷新模型列表</button><button className="secondary-action action-button" onClick={probe}>测试视觉连接</button></div><p className="field-help">支持 OpenAI Chat、Responses、Anthropic Messages、Gemini GenerateContent 与 Ollama 原生协议。{isNativeApp()?'APK 可直连本机或局域网 HTTP 端口。':'网页版自定义代理仅允许 HTTPS；本机和局域网端口请使用 APK。'} 没有模型连接时，训练计划、日历和日志仍可离线使用。</p></div>
+      <div className="settings-card model-settings"><div className="section-row"><div><p className="section-kicker">模型连接</p><h2>供应商与本地端口</h2></div><span>{protocolLabels[settings.protocol]}</span></div><div className="provider-grid">{providerPresets.map((preset)=><button key={preset.id} className={settings.providerId===preset.id?'active':''} onClick={()=>{selectProvider(preset.id);setConnectionTest(null);}}><b>{preset.name}</b><small>{preset.subtitle}</small></button>)}</div><div className="form-grid"><label>连接协议<select value={settings.protocol} onChange={(event)=>{setSettings({...settings,providerId:'custom',protocol:event.target.value as ProviderProtocol});setConnectionTest(null);}}>{(Object.keys(protocolLabels) as ProviderProtocol[]).map((protocol)=><option key={protocol} value={protocol}>{protocolLabels[protocol]}</option>)}</select></label><label>模型名称<input list="models" value={settings.model} onChange={(event)=>{setSettings({...settings,model:event.target.value});setConnectionTest(null);}} placeholder="可手工输入模型 ID"/></label></div><datalist id="models">{models.map((model)=><option key={model} value={model}/>)}</datalist><label>Base URL / 完整端点<input value={settings.endpoint} onChange={(event)=>{setSettings({...settings,providerId:'custom',endpoint:event.target.value});setConnectionTest(null);}} placeholder="https://… 或 APK 内 http://192.168…:11434"/></label><label>API 密钥（本地模型可留空）<input type="password" autoComplete="off" placeholder="仅保存在这台设备" value={settings.apiKey} onChange={(event)=>{setSettings({...settings,apiKey:event.target.value});setConnectionTest(null);}}/></label><details className="advanced-settings"><summary>高级：自定义请求头</summary><label>JSON 请求头<textarea value={settings.customHeaders} onChange={(event)=>setSettings({...settings,customHeaders:event.target.value})} placeholder={'{"HTTP-Referer":"https://example.com","X-Title":"练途"}'}/></label><p>用于网关、反向代理或供应商附加鉴权；自定义值会覆盖协议默认请求头。</p></details><div className="model-test-buttons"><button className="secondary-action action-button" onClick={fetchModels}>模型列表</button><button className="secondary-action action-button" onClick={textProbe}>普通测试</button><button className="secondary-action action-button" onClick={probe}>视觉测试</button></div>{connectionTest&&<div className={`connection-result ${connectionTest.kind}`} role="status"><b>{connectionTest.kind==='testing'?'测试中':connectionTest.kind==='success'?'连接成功':'连接失败'}</b><span>{connectionTest.message}</span></div>}<p className="field-help">先运行普通测试确认接口、密钥和模型名称，再运行视觉测试确认图片能力。支持 OpenAI Chat、Responses、Anthropic Messages、Gemini GenerateContent 与 Ollama 原生协议。{isNativeApp()?'APK 可直连本机或局域网 HTTP 端口。':'网页版自定义代理仅允许 HTTPS；本机和局域网端口请使用 APK。'}</p></div>
       <div className="settings-card"><p className="section-kicker">每日能量目标</p><label>基础摄入目标（kcal）<input type="number" min="500" max="10000" value={settings.target} onChange={(event)=>setSettings({...settings,target:Math.max(500,Number(event.target.value)||2000)})}/></label><button className="primary-action action-button" onClick={saveSettings}>保存全部设置</button></div>
       <button className="install-card" onClick={()=>setInstallOpen(true)}><span>＋</span><div><b>安装到手机主屏幕</b><small>像普通 App 一样打开练途</small></div><i>›</i></button>
     </section>}
 
-    <nav className="bottom-nav" aria-label="主导航"><button className={tab==='today'?'active':''} onClick={()=>setTab('today')}><span>▶</span>今日</button><button className={tab==='plan'?'active':''} onClick={()=>setTab('plan')}><span>▦</span>计划</button><button className={tab==='nutrition'?'active':''} onClick={()=>setTab('nutrition')}><span>◉</span>热量镜</button><button className={tab==='body'?'active':''} onClick={()=>setTab('body')}><span>⌁</span>身体</button><button className={tab==='settings'?'active':''} onClick={()=>setTab('settings')}><span>⚙</span>我的</button></nav>
+    <nav className="bottom-nav" aria-label="主导航"><button className={tab==='today'?'active':''} onClick={()=>setTab('today')}><span>▶</span>今日</button><button className={tab==='plan'?'active':''} onClick={()=>setTab('plan')}><span>▦</span>计划</button><button className={tab==='nutrition'?'active':''} onClick={()=>setTab('nutrition')}><span>◉</span>热量镜</button><button className={tab==='coach'?'active':''} onClick={()=>setTab('coach')}><span>AI</span>教练</button><button className={tab==='body'?'active':''} onClick={()=>setTab('body')}><span>⌁</span>身体</button><button className={tab==='settings'?'active':''} onClick={()=>setTab('settings')}><span>⚙</span>我的</button></nav>
 
     {activeSession&&<WorkoutSheet session={activeSession} logs={activeLogs} note={workoutNote} update={updateActive} setNote={setWorkoutNote} close={()=>setActiveSession(null)} finish={finishWorkout} showDetail={setDetail}/>}
     {detail&&<ExerciseSheet exercise={detail} media={media} close={()=>setDetail(null)}/>}
@@ -401,9 +485,9 @@ function OnboardingSheet({profile,settings,setProfile,setSettings,finish}:{profi
     <header><div><small>首次使用 · 可随时修改</small><b>先回答几个问题，再安排训练</b></div><button onClick={()=>finish()}>跳过</button></header>
     <div className="onboarding-copy"><p>计划由本地规则引擎生成；接入大模型和上传报告都是可选项。任何 AI 调整都要你再次确认。</p></div>
     <div className="settings-card"><p className="section-kicker">1 · 目标与经验</p><div className="goal-grid">{(Object.keys(goalLabels) as TrainingGoal[]).map((goal)=><button key={goal} className={profile.goal===goal?'active':''} onClick={()=>setProfile({...profile,goal})}>{goalLabels[goal]}</button>)}</div><div className="segment-row"><span>训练经验</span><div><button className={profile.level==='beginner'?'active':''} onClick={()=>setProfile({...profile,level:'beginner'})}>新手 / 恢复</button><button className={profile.level==='intermediate'?'active':''} onClick={()=>setProfile({...profile,level:'intermediate'})}>中级</button></div></div></div>
-    <div className="settings-card"><p className="section-kicker">2 · 时间与器械</p><div className="segment-row"><span>每周训练</span><div>{([2,3,4,5,6] as TrainingDayCount[]).map((days)=><button key={days} className={profile.daysPerWeek===days?'active':''} onClick={()=>setProfile({...profile,daysPerWeek:days})}>{days} 天</button>)}</div></div><div className="segment-row"><span>器械</span><div>{([['bodyweight','徒手'],['dumbbell','哑铃'],['gym','健身房']] as [Equipment,string][]).map(([value,label])=><button key={value} className={profile.equipment===value?'active':''} onClick={()=>setProfile({...profile,equipment:value})}>{label}</button>)}</div></div><label>单次可用时间（分钟）<input type="number" min="20" max="120" value={profile.sessionMinutes} onChange={(event)=>setProfile({...profile,sessionMinutes:Math.min(120,Math.max(20,Number(event.target.value)||60))})}/></label></div>
+    <div className="settings-card"><p className="section-kicker">2 · 时间与器械</p><div className="segment-row"><span>每周训练</span><div>{([2,3,4,5,6] as TrainingDayCount[]).map((days)=><button key={days} className={profile.daysPerWeek===days?'active':''} onClick={()=>setProfile({...profile,daysPerWeek:days})}>{days} 天</button>)}</div></div><div className="segment-row"><span>器械</span><div>{([['bodyweight','徒手'],['dumbbell','哑铃'],['gym','健身房']] as [Equipment,string][]).map(([value,label])=><button key={value} className={profile.equipment===value?'active':''} onClick={()=>setProfile({...profile,equipment:value})}>{label}</button>)}</div></div><label>单次可用时间（分钟）<input type="number" inputMode="numeric" value={profile.sessionMinutes||''} onChange={(event)=>setProfile({...profile,sessionMinutes:event.target.value===''?0:Number(event.target.value)})} onBlur={()=>setProfile({...profile,sessionMinutes:Math.min(120,Math.max(20,profile.sessionMinutes||60))})}/></label></div>
     <div className="settings-card"><p className="section-kicker">3 · 主要动作 1RM</p><h2>用于计算开局训练重量</h2><p className="field-help">填写近期动作规范的一次最大重量；至少填写一个。完全不知道可以点右上角跳过，首训按 RPE 6–7 校准。</p><OneRmFields profile={profile} onChange={(key,value)=>setProfile({...profile,mainLift1RM:{...profile.mainLift1RM,[key]:value}})}/></div>
-    <div className="settings-card"><p className="section-kicker">4 · 恢复与限制</p><div className="form-grid"><label>平均睡眠（小时）<input type="number" min="3" max="12" step="0.5" value={profile.sleepHours??7.5} onChange={(event)=>setProfile({...profile,sleepHours:Math.min(12,Math.max(3,Number(event.target.value)||7.5))})}/></label><label>当前体重（kg）<input type="number" min="30" max="250" value={profile.weightKg} onChange={(event)=>setProfile({...profile,weightKg:Math.min(250,Math.max(30,Number(event.target.value)||65))})}/></label></div><label>疼痛或不适部位<input value={(profile.painAreas??[]).join('、')} onChange={(event)=>setProfile({...profile,painAreas:event.target.value.split(/[、,，]/).map((item)=>item.trim()).filter(Boolean)})} placeholder="没有可留空；例如右膝、肩前侧"/></label><label>现有心肺活动<input value={(profile.cardioActivities??[]).join('、')} onChange={(event)=>setProfile({...profile,cardioActivities:event.target.value.split(/[、,，]/).map((item)=>item.trim()).filter(Boolean)})} placeholder="例如跑步、骑车、球类"/></label></div>
+    <div className="settings-card"><p className="section-kicker">4 · 恢复与限制</p><div className="form-grid"><label>平均睡眠（小时）<input type="number" inputMode="decimal" step="0.1" value={profile.sleepHours??''} onChange={(event)=>setProfile({...profile,sleepHours:event.target.value===''?undefined:Number(event.target.value)})} onBlur={()=>setProfile({...profile,sleepHours:Math.min(12,Math.max(3,profile.sleepHours??7.5))})}/></label><label>当前体重（kg）<input type="number" inputMode="decimal" value={profile.weightKg||''} onChange={(event)=>setProfile({...profile,weightKg:event.target.value===''?0:Number(event.target.value)})} onBlur={()=>setProfile({...profile,weightKg:Math.min(250,Math.max(30,profile.weightKg||65))})}/></label></div><p className="field-help">可以先清空再输入小数，离开输入框后才检查范围。</p><label>疼痛或不适部位<input value={(profile.painAreas??[]).join('、')} onChange={(event)=>setProfile({...profile,painAreas:event.target.value.split(/[、,，]/).map((item)=>item.trim()).filter(Boolean)})} placeholder="没有可留空；例如右膝、肩前侧"/></label><label>现有心肺活动<input value={(profile.cardioActivities??[]).join('、')} onChange={(event)=>setProfile({...profile,cardioActivities:event.target.value.split(/[、,，]/).map((item)=>item.trim()).filter(Boolean)})} placeholder="例如跑步、骑车、球类"/></label></div>
     <div className="settings-card"><p className="section-kicker">5 · 可选大模型</p><label>API 密钥<input type="password" autoComplete="off" value={settings.apiKey} onChange={(event)=>setSettings({...settings,apiKey:event.target.value})} placeholder="可跳过，之后在我的设置中填写"/></label></div>
     <div className="two-buttons"><button className="secondary-action action-button" onClick={()=>finish('body')}>先生成计划，再上传报告</button><button className="primary-action action-button" onClick={()=>finish('today')}>生成基础计划</button></div>
   </section></div>;

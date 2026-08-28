@@ -123,18 +123,32 @@ export async function listProviderModels(connection:ModelConnection,http:HttpCli
   return rows.map((item)=>String(item.id??item.model??item.name??'').replace(/^models\//,'')).filter(Boolean);
 }
 
+function textFrom(value:unknown):string{
+  if(typeof value==='string')return value.trim();
+  if(Array.isArray(value))return value.map(textFrom).filter(Boolean).join('');
+  if(!value||typeof value!=='object')return '';
+  const item=value as Record<string,unknown>;
+  for(const key of ['text','output_text','content','response','result']){
+    const text=textFrom(item[key]);if(text)return text;
+  }
+  return '';
+}
+
 function responseContent(protocol:ProviderProtocol,data:unknown){
+  const root=data&&typeof data==='object'&&'data' in data?(data as {data?:unknown}).data??data:data;
   if(protocol==='openai_chat'){
-    const raw=(data as {choices?:Array<{message?:{content?:unknown}}>}).choices?.[0]?.message?.content;
-    return Array.isArray(raw)?raw.map((part)=>typeof part==='object'&&part?String((part as {text?:unknown}).text??''):'').join(''):String(raw??'').trim();
+    const choice=(root as {choices?:Array<{message?:{content?:unknown;reasoning_content?:unknown};text?:unknown}>}).choices?.[0];
+    const content=textFrom(choice?.message?.content)||textFrom(choice?.text);
+    const structuredFallback=textFrom(choice?.message?.reasoning_content);
+    return content||(/^```(?:json)?\s*[\[{]|^[\[{]/i.test(structuredFallback)?structuredFallback:'');
   }
   if(protocol==='openai_responses'){
-    const payload=data as {output_text?:string;output?:Array<{content?:Array<{text?:string}>}>};
-    return String(payload.output_text??payload.output?.flatMap((item)=>item.content??[]).map((part)=>part.text??'').join('')??'').trim();
+    const payload=root as {output_text?:unknown;output?:Array<{content?:unknown}>};
+    return textFrom(payload.output_text)||textFrom(payload.output?.flatMap((item)=>Array.isArray(item.content)?item.content:[item.content]));
   }
-  if(protocol==='anthropic_messages')return (data as {content?:Array<{text?:string}>}).content?.map((part)=>part.text??'').join('').trim()??'';
-  if(protocol==='gemini_generate')return (data as {candidates?:Array<{content?:{parts?:Array<{text?:string}>}}>}).candidates?.[0]?.content?.parts?.map((part)=>part.text??'').join('').trim()??'';
-  return String((data as {message?:{content?:string}}).message?.content??'').trim();
+  if(protocol==='anthropic_messages')return textFrom((root as {content?:unknown}).content);
+  if(protocol==='gemini_generate')return textFrom((root as {candidates?:Array<{content?:{parts?:unknown}}>}).candidates?.[0]?.content?.parts);
+  return textFrom((root as {message?:{content?:unknown};response?:unknown}).message?.content)||textFrom((root as {response?:unknown}).response);
 }
 
 function httpError(response:HttpResult){
@@ -165,6 +179,10 @@ export async function requestProviderModel(request:ModelRequest,http:HttpClient)
   const response=await http(url,'POST',headers,body);
   if(response.status<200||response.status>=300)throw httpError(response);
   const content=responseContent(connection.protocol,response.data);
-  if(!content)throw new Error('请求成功，但模型没有返回文本内容');
+  if(!content){
+    const payload=response.data as {choices?:Array<{finish_reason?:unknown}>;status?:unknown;incomplete_details?:unknown};
+    const detail=payload?.choices?.[0]?.finish_reason??payload?.incomplete_details??payload?.status;
+    throw new Error(`接口连接成功，但没有读取到模型正文${detail?`（状态：${JSON.stringify(detail).slice(0,120)}）`:''}。请先运行普通文本测试；若仍为空，请检查模型名称或增大输出上限`);
+  }
   return content;
 }
