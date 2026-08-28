@@ -1,0 +1,272 @@
+[
+  {
+    "exerciseId": "leg_press",
+    "wgerId": 371,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/leg-press.webp",
+    "sourceUrl": "https://wger.de/media/exercise-images/371/d2136f96-3a43-4d4c-9944-1919c4ca1ce1.webp",
+    "author": "BFad07",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:11.617Z"
+  },
+  {
+    "exerciseId": "bench",
+    "wgerId": 73,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/bench-press.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/192/Bench-press-1.png",
+    "author": "Everkinetic",
+    "license": "CC-BY-SA 3",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:12.831Z"
+  },
+  {
+    "exerciseId": "lat_pulldown",
+    "wgerId": 1127,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/lat-pulldown.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/1127/4942b7c0-6bda-4983-88e5-86547c3d445e.png",
+    "author": "Franpol",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:13.402Z"
+  },
+  {
+    "exerciseId": "leg_curl",
+    "wgerId": 366,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/leg-curl.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/117/seated-leg-curl-large-1.png",
+    "author": "Everkinetic",
+    "license": "CC-BY-SA 3",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:14.627Z"
+  },
+  {
+    "exerciseId": "cable_row",
+    "wgerId": 1117,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/cable-row.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/1117/2555c4c3-a84d-47db-b83b-cbf721f12e45.png",
+    "author": "Franpol",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:15.232Z"
+  },
+  {
+    "exerciseId": "leg_extension",
+    "wgerId": 369,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/leg-extension.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/369/78c915d1-e46d-4d30-8124-65d68664c3ef.png",
+    "author": "Franpol",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:16.224Z"
+  },
+  {
+    "exerciseId": "chest_fly",
+    "wgerId": 926,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/chest-fly.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/926/ae9deb5d-a1e9-4c30-b1e3-c128ba5d4969.png",
+    "author": "novadani",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:18.172Z"
+  },
+  {
+    "exerciseId": "triceps",
+    "wgerId": 1185,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/triceps-pushdown.jpg",
+    "sourceUrl": "https://wger.de/media/exercise-images/1185/c5ca283d-8958-4fd8-9d59-a3f52a3ac66b.jpg",
+    "author": "anto.kreegyr",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:18.934Z"
+  },
+  {
+    "exerciseId": "squat",
+    "wgerId": 203,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/goblet-squat.jpg",
+    "sourceUrl": "https://wger.de/media/exercise-images/203/1c052351-2af0-4227-aeb0-244008e4b0a8.jpeg",
+    "author": "philip",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:19.774Z"
+  },
+  {
+    "exerciseId": "body_squat",
+    "status": "generated",
+    "localPath": "/exercises/bodyweight-squat.png",
+    "title": "徒手深蹲",
+    "author": "OpenAI image model / Liantu project",
+    "license": "Project original asset",
+    "licenseUrl": "",
+    "style": "grayscale anatomical figure with terracotta muscle highlights"
+  },
+  {
+    "exerciseId": "pushup",
+    "wgerId": 1551,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/push-up.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/1551/a6a9e561-3965-45c6-9f2b-ee671e1a3a45.png",
+    "author": "Settebello",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:26.456Z"
+  },
+  {
+    "exerciseId": "row",
+    "wgerId": 81,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/dumbbell-row.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/81/a751a438-ae2d-4751-8d61-cef0e9292174.png",
+    "author": "Franpol",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:27.684Z"
+  },
+  {
+    "exerciseId": "dead_bug",
+    "status": "generated",
+    "localPath": "/exercises/dead-bug.png",
+    "title": "死虫式",
+    "author": "OpenAI image model / Liantu project",
+    "license": "Project original asset",
+    "licenseUrl": "",
+    "style": "grayscale anatomical figure with terracotta muscle highlights"
+  },
+  {
+    "exerciseId": "lunge",
+    "wgerId": 999,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/reverse-lunge.jpg",
+    "sourceUrl": "https://wger.de/media/exercise-images/999/d0931eb3-8db0-4049-bb08-aa4036072056.jfif",
+    "author": "philip",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:28.723Z"
+  },
+  {
+    "exerciseId": "plank",
+    "wgerId": 458,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/plank.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/458/b7bd9c28-9f1d-4647-bd17-ab6a3adf5770.png",
+    "author": "utkb",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:30.475Z"
+  },
+  {
+    "exerciseId": "jumping_jack",
+    "wgerId": 320,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/jumping-jack.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/320/6c9124b6-3551-47a8-9c22-20141c8b9c53.png",
+    "author": "student1234",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:31.847Z"
+  },
+  {
+    "exerciseId": "mountain",
+    "status": "generated",
+    "localPath": "/exercises/mountain-climber.png",
+    "title": "登山跑",
+    "author": "OpenAI image model / Liantu project",
+    "license": "Project original asset",
+    "licenseUrl": "",
+    "style": "grayscale anatomical figure with terracotta muscle highlights"
+  },
+  {
+    "exerciseId": "bridge",
+    "wgerId": 265,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/glute-bridge.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/265/7528acb4-b2cc-4b75-b6ae-d514cbd4f78b.png",
+    "author": "tdprice12",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:37.724Z"
+  },
+  {
+    "exerciseId": "bird_dog",
+    "wgerId": 1572,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/bird-dog.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/1572/3d14e761-a73d-49da-8804-f3016a7573ff.png",
+    "author": "Settebello",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:41.656Z"
+  },
+  {
+    "exerciseId": "rdl",
+    "wgerId": 1652,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/dumbbell-rdl.webp",
+    "sourceUrl": "https://wger.de/media/exercise-images/1652/0306c8c0-70cc-45d4-92de-6fa72ceaa834.webp",
+    "author": "AlucardEvil40",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:42.178Z"
+  },
+  {
+    "exerciseId": "press",
+    "wgerId": 567,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/shoulder-press.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/123/dumbbell-shoulder-press-large-1.png",
+    "author": "Everkinetic",
+    "license": "CC-BY-SA 3",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:42.956Z"
+  },
+  {
+    "exerciseId": "swing",
+    "wgerId": 960,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/kettlebell-swing.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/960/da4d0560-da89-4bb5-b91f-746458fb04ad.png",
+    "author": "clafal",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:44.775Z"
+  },
+  {
+    "exerciseId": "side_plank",
+    "wgerId": 2509,
+    "status": "downloaded",
+    "localPath": "/exercises/wger/side-plank.png",
+    "sourceUrl": "https://wger.de/media/exercise-images/2509/41318de7-85ad-4a8c-8d94-dff73206e2fb.png",
+    "author": "Vasco Custom",
+    "license": "CC-BY-SA 4",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+    "retrievedAt": "2026-08-28T17:09:45.596Z"
+  },
+  {
+    "exerciseId": "carry",
+    "status": "generated",
+    "localPath": "/exercises/farmers-walk.png",
+    "title": "农夫行走",
+    "author": "OpenAI image model / Liantu project",
+    "license": "Project original asset",
+    "licenseUrl": "",
+    "style": "grayscale anatomical figure with terracotta muscle highlights"
+  },
+  {
+    "exerciseId": "walk",
+    "status": "generated",
+    "localPath": "/exercises/treadmill-walk.png",
+    "title": "跑步机快走或轻松跑",
+    "author": "OpenAI image model / Liantu project",
+    "license": "Project original asset",
+    "licenseUrl": "",
+    "style": "grayscale anatomical figure with terracotta muscle highlights"
+  }
+]

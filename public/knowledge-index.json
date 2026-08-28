@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T16:48:31.158Z",
+  "generatedAt": "2026-08-28T17:25:16.763Z",
   "sources": [
     {
       "id": "acsm-2026",
@@ -142,6 +142,16 @@
       "localFile": null
     },
     {
+      "id": "workout-cool",
+      "tier": "C",
+      "title": "workout.cool",
+      "year": 2026,
+      "evidenceType": "Open-source workout platform reference",
+      "license": "MIT; architecture studied, no implementation copied",
+      "url": "https://github.com/Snouzy/workout-cool",
+      "localFile": null
+    },
+    {
       "id": "freegym-wiki",
       "tier": "C",
       "title": "FreeGym-Wiki",
@@ -179,6 +189,36 @@
       "evidenceType": "Free public practice template",
       "license": "Copyrighted; no template copied",
       "url": "https://www.barbellmedicine.com/blog/the-beginner-prescription-blog/",
+      "localFile": null
+    },
+    {
+      "id": "bbm-strongman",
+      "tier": "D",
+      "title": "Barbell Medicine Free Strongman Program and Instructions",
+      "year": 2025,
+      "evidenceType": "Free public practice template",
+      "license": "Copyrighted; principles summarized, no table copied",
+      "url": "https://www.barbellmedicine.com/wp-content/uploads/2025/01/Strongman-Instructions.pdf",
+      "localFile": null
+    },
+    {
+      "id": "bwf-rr",
+      "tier": "D",
+      "title": "r/bodyweightfitness Recommended Routine",
+      "year": 2017,
+      "evidenceType": "Community-maintained public practice routine",
+      "license": "Public wiki; link and original summary only",
+      "url": "https://redditbwf.github.io/wiki/recommended_routine.html",
+      "localFile": null
+    },
+    {
+      "id": "crossfit-wod",
+      "tier": "D",
+      "title": "CrossFit Workout of the Day and Scaling Resources",
+      "year": 2026,
+      "evidenceType": "Official public practice library",
+      "license": "Copyrighted; used only as conditioning and scaling reference",
+      "url": "https://www.crossfit.com/workout/",
       "localFile": null
     }
   ],
@@ -254,6 +294,104 @@
       "path": "Training-Nutrition-KB/03_Exercise_Selection/movement-patterns-and-machines.md",
       "summary": "器械、自由重量和徒手都可以有效，动作选择应服务于目标、可进阶性和可恢复性。",
       "body": "\n# 动作模式与器械优先选择\n\n一句话结论：器械、自由重量和徒手都可以有效，动作选择应服务于目标、可进阶性和可恢复性。\n\n解决什么问题：用蹲、髋铰链、水平推拉、垂直推拉、单腿、搬运与躯干稳定检查计划完整性。\n\n不解决什么问题：动作模式完整不等于每个动作都适合每个人。\n\n关键变量：目标肌群、动作模式、器械条件、技术成本、刺激疲劳比、疼痛和替代动作。\n\n适用人群：一般健康成人；练途默认优先健身房固定器械和稳定可重复的自由重量动作。\n\n如何监测：技术稳定性、目标肌群感觉、负荷进阶、关节耐受及对后续训练的影响。\n\n什么时候保持：动作可稳定执行、能小幅进阶且不影响恢复。\n\n什么时候替换：器械不可用、连续两次产生不适、技术难度阻碍目标刺激，或进入新的专项阶段。\n\n证据等级：ACSM 为 A；wger 仅作为 C 级动作数据结构与媒体来源。\n\n仍有哪些不确定性：动作“刺激疲劳比”高度个体化，需要训练日志而不是仅靠动作名称判断。\n\n"
+    },
+    {
+      "id": "beginner-prescription",
+      "title": "新手与恢复训练的保守起步",
+      "evidence_level": "A-D",
+      "applicable_population": "beginners_and_returners",
+      "sources": [
+        "acsm-2026",
+        "bbm-beginner"
+      ],
+      "rule_ids": [
+        "beginner-start-submaximal"
+      ],
+      "path": "Training-Nutrition-KB/04_Programming/beginner-prescription.md",
+      "summary": "首次训练应从可控、远离力竭的剂量开始，再根据完成质量逐步加重。",
+      "body": "\n# 新手与恢复训练的保守起步\n\n一句话结论：首次训练应从可控、远离力竭的剂量开始，再根据完成质量逐步加重。\n\n解决什么问题：为新手、停练后恢复和不确定初始重量的人提供机器、哑铃或杠铃的保守入口。\n\n不解决什么问题：不复制 Barbell Medicine 的五周表格，也不替代疼痛或疾病评估。\n\n关键变量：器械条件、动作熟悉度、RPE/RIR、完成次数、技术质量和次日恢复。\n\n适用人群：完全新手、重新开始训练、初始能力未知或希望优先使用器械的人。\n\n如何监测：动作是否稳定、训练后是否能正常恢复、实际 RPE 是否约为 6 至 7、连续训练完成率。\n\n什么时候保持：动作稳定且保留约 3 至 4 次余力，下一次训练愿意继续。\n\n什么时候调整：动作失控或 RPE 明显偏高时降重；连续达到次数上限且 RPE 不高时小幅加重。\n\n证据等级：训练起步原则为 A；免费模板的具体组织方式为 D。\n\n仍有哪些不确定性：主观 RPE 在新手中的准确度有限，需要结合技术和完成情况解释。\n"
+    },
+    {
+      "id": "bodyweight-progression",
+      "title": "徒手动作进阶路线",
+      "evidence_level": "A-D",
+      "applicable_population": "home_and_bodyweight_trainees",
+      "sources": [
+        "acsm-2026",
+        "bwf-rr"
+      ],
+      "rule_ids": [
+        "bodyweight-progress-one-variable"
+      ],
+      "path": "Training-Nutrition-KB/04_Programming/bodyweight-progression.md",
+      "summary": "徒手训练通过次数、动作幅度和更难变式逐级超负荷，仍需保持推、拉、蹲、髋和核心平衡。",
+      "body": "\n# 徒手动作进阶路线\n\n一句话结论：徒手训练通过次数、动作幅度和更难变式逐级超负荷，仍需保持推、拉、蹲、髋和核心平衡。\n\n解决什么问题：为无健身房器械、旅行或家庭训练提供可持续的动作替代与进阶逻辑。\n\n不解决什么问题：不复制 Recommended Routine 的完整安排，也不保证高级体操技能适合无人指导练习。\n\n关键变量：动作变式、次数区间、动作幅度、技术、器械支点和推拉平衡。\n\n适用人群：家庭训练者、器械受限者以及需要主计划替代动作的人。\n\n如何监测：标准动作完成次数、技术一致性、左右对称、关节反应和变式难度。\n\n什么时候保持：当前变式仍有稳定进步且动作质量良好。\n\n什么时候调整：连续达到次数上限后只提高一个难度变量；新变式无法控制时退回上一层。\n\n证据等级：渐进超负荷总原则为 A；社区进阶路线为 D。\n\n仍有哪些不确定性：社区变式命名与难度跨度不统一，需由个人表现校准。\n"
+    },
+    {
+      "id": "functional-strongman",
+      "title": "功能性力量与 Strongman 素材",
+      "evidence_level": "A-D",
+      "applicable_population": "general_strength_and_conditioning",
+      "sources": [
+        "acsm-2026",
+        "bbm-strongman"
+      ],
+      "rule_ids": [
+        "functional-cover-carry-brace-hinge-press"
+      ],
+      "path": "Training-Nutrition-KB/04_Programming/functional-strongman.md",
+      "summary": "功能性力量应围绕搬运、抓握、躯干稳定、髋铰链和过顶输出等可测能力组织。",
+      "body": "\n# 功能性力量与 Strongman 素材\n\n一句话结论：功能性力量应围绕搬运、抓握、躯干稳定、髋铰链和过顶输出等可测能力组织。\n\n解决什么问题：将公开 Strongman 实践材料转化为普通健身房可执行的功能训练模块。\n\n不解决什么问题：不复制原计划表格，不要求使用原木、轮胎等特殊器械，也不等于随机高强度循环。\n\n关键变量：搬运距离、负荷、姿势、抓握、核心稳定、动作技术和心肺恢复。\n\n适用人群：希望在器械力量基础上提高搬运与工作容量的一般成年训练者。\n\n如何监测：距离或时间、负荷、姿势保持、呼吸、RPE 以及对下一次力量训练的影响。\n\n什么时候保持：动作低技术门槛、姿势稳定、功能模块未降低主项训练质量。\n\n什么时候调整：握力先于目标肌群过度衰竭、躯干姿势破坏或影响后续恢复时降低负荷或距离。\n\n证据等级：一般抗阻训练原则为 A；Strongman 具体模板为 D 级实践材料。\n\n仍有哪些不确定性：不同功能目标的专项转移不同，必须先定义用户希望改善的具体能力。\n"
+    },
+    {
+      "id": "gzcl-tier-framework",
+      "title": "GZCL 分层训练框架",
+      "evidence_level": "A-D",
+      "applicable_population": "novice_to_intermediate_strength",
+      "sources": [
+        "acsm-2026",
+        "gzcl-public"
+      ],
+      "rule_ids": [
+        "gzcl-cover-t1-t2-t3"
+      ],
+      "path": "Training-Nutrition-KB/04_Programming/gzcl-tier-framework.md",
+      "summary": "T1、T2、T3 是把高强度专项、次级复合动作和高次数辅助动作分层管理，而不是固定动作清单。",
+      "body": "\n# GZCL 分层训练框架\n\n一句话结论：T1、T2、T3 是把高强度专项、次级复合动作和高次数辅助动作分层管理，而不是固定动作清单。\n\n解决什么问题：帮助计划同时覆盖力量技术、次级训练量和局部辅助，并为不同层级设置不同进阶方式。\n\n不解决什么问题：不能直接从层级名称确定个人重量、固定周数或最优减载频率。\n\n关键变量：动作角色、负荷、次数、RPE/RIR、周频率、失败次数和局部恢复。\n\n适用人群：新手至早期中级、同时追求力量和肌肉并愿意记录训练表现的人。\n\n如何监测：T1 完成率与 e1RM、T2 技术和容量、T3 次数区间、关节反应及总时长。\n\n什么时候保持：三层动作均可恢复，主项技术稳定，辅助训练未挤占主项质量。\n\n什么时候调整：主项连续失败时先调整该动作；辅助疲劳影响主项时减少 T3；累计疲劳达到减载触发条件时生成建议。\n\n证据等级：分层名称为 D 级实践框架；负荷、训练量和自我调节原则由 A 级来源约束。\n\n仍有哪些不确定性：不同 GZCL 变体的具体表格属于各自计划，不能把单一变体当成所有人的通用处方。\n"
+    },
+    {
+      "id": "intermediate-rpe-block",
+      "title": "中级力量训练的 RPE 分阶段结构",
+      "evidence_level": "A-D",
+      "applicable_population": "intermediate_strength_trainees",
+      "sources": [
+        "autoreg-2021",
+        "tsa-freebies"
+      ],
+      "rule_ids": [
+        "intermediate-block-rpe-autoregulation"
+      ],
+      "path": "Training-Nutrition-KB/04_Programming/intermediate-rpe-block.md",
+      "summary": "中级计划可把积累、强化和评估分阶段，并用 RPE 调节当日负荷，而不是机械照搬固定重量。",
+      "body": "\n# 中级力量训练的 RPE 分阶段结构\n\n一句话结论：中级计划可把积累、强化和评估分阶段，并用 RPE 调节当日负荷，而不是机械照搬固定重量。\n\n解决什么问题：将 TSA 等公开实践模板中的分阶段思想转化为不依赖原表格的通用计划结构。\n\n不解决什么问题：不提供或复制 TSA 9 周原始表格，也不保证每个人都适合力量举专项频率。\n\n关键变量：训练经验、主项频率、阶段目标、RPE、e1RM、完成率、睡眠和疼痛。\n\n适用人群：稳定训练至少约半年、动作技术可重复、主要目标为力量且能够记录 RPE 的训练者。\n\n如何监测：同 RPE 下的负荷或次数、e1RM 趋势、连续失败、训练时长和恢复信号。\n\n什么时候保持：计划完成率高、目标 RPE 与实际接近、e1RM 稳定或上升。\n\n什么时候调整：实际 RPE 持续高于目标、表现连续下降或生活压力明显增加时，先降低当次剂量，再考虑减载提案。\n\n证据等级：自我调节原则为 A；TSA 的具体组织方式为 D 级实践案例。\n\n仍有哪些不确定性：最佳阶段长度和专项频率依训练史与目标而异。\n"
+    },
+    {
+      "id": "open-source-training-engines",
+      "title": "开源训练引擎的可借鉴边界",
+      "evidence_level": "C",
+      "applicable_population": "product_and_program_design",
+      "sources": [
+        "liftosaur",
+        "wger",
+        "workout-cool"
+      ],
+      "rule_ids": [
+        "open-engine-behavior-only",
+        "media-license-per-item"
+      ],
+      "path": "Training-Nutrition-KB/04_Programming/open-source-training-engines.md",
+      "summary": "开源软件适合学习计划表达、训练记录和进阶行为，但训练处方仍须由循证规则决定。",
+      "body": "\n# 开源训练引擎的可借鉴边界\n\n一句话结论：开源软件适合学习计划表达、训练记录和进阶行为，但训练处方仍须由循证规则决定。\n\n解决什么问题：说明 Liftosaur、wger 与 workout.cool 分别可用于研究计划脚本、动作数据和训练记录界面。\n\n不解决什么问题：开源代码的存在不证明内置训练模板有效，也不自动授予第三方动作媒体的再分发权。\n\n关键变量：软件许可证、媒体条目许可证、计划版本、进阶状态、失败回退、动作与器械字段。\n\n适用人群：训练产品设计者、希望审计计划来源的训练者和需要离线动作库的应用。\n\n如何监测：每条规则是否有证据来源、每张图片是否有作者与许可证、是否复制了 AGPL 实现。\n\n什么时候保持：只参考公开行为和数据模型，原创实现通过本项目测试，并逐项保存媒体署名。\n\n什么时候调整：许可证无法确认、上游数据发生变化、规则无法追溯到独立训练证据时停止打包相关内容。\n\n证据等级：C，属于软件与数据结构参考，不是训练效果证据。\n\n仍有哪些不确定性：上游项目、API 和媒体条目可能更新，构建前仍需重新审计。\n"
     },
     {
       "id": "periodization-and-deload",
@@ -333,6 +471,22 @@
       "path": "Training-Nutrition-KB/05_Conditioning/concurrent-training.md",
       "summary": "功能体能应围绕具体能力并保留可量化进阶，不用随机高强度动作替代力量主项。",
       "body": "\n# 力量、耐力与功能体能并行\n\n一句话结论：功能体能应围绕具体能力并保留可量化进阶，不用随机高强度动作替代力量主项。\n\n解决什么问题：把稳态有氧、间歇、搬运、抗旋转、单腿稳定和爆发动作放入力量周计划。\n\n不解决什么问题：不能用单一“燃脂循环”同时最大化所有体能与力量目标。\n\n关键变量：主要目标、强度、技术门槛、力量日距离、下肢疲劳和单次时长。\n\n适用人群：一般健康成人；复杂举重和高冲击动作需要相应技术经验。\n\n如何监测：心肺训练完成度、主项表现、腿部恢复和动作质量。\n\n什么时候增加：力量主项稳定且体能课后 24-48 小时恢复良好。\n\n什么时候降低：下肢主项连续下降、体能课影响技术或恢复不足。\n\n证据等级：A-B。\n\n仍有哪些不确定性：并行训练效果受总训练量、顺序和个体恢复影响。\n\n"
+    },
+    {
+      "id": "crossfit-scaling-library",
+      "title": "WOD 作为体能素材库的使用边界",
+      "evidence_level": "A-D",
+      "applicable_population": "general_conditioning",
+      "sources": [
+        "acsm-2026",
+        "crossfit-wod"
+      ],
+      "rule_ids": [
+        "wod-does-not-replace-strength-progression"
+      ],
+      "path": "Training-Nutrition-KB/05_Conditioning/crossfit-scaling-library.md",
+      "summary": "WOD 可提供体能组合和缩放思路，但不能替代可量化的力量主项进阶。",
+      "body": "\n# WOD 作为体能素材库的使用边界\n\n一句话结论：WOD 可提供体能组合和缩放思路，但不能替代可量化的力量主项进阶。\n\n解决什么问题：从公开 WOD 学习动作替代、降低负荷、减少次数和控制复杂度的方法。\n\n不解决什么问题：不复制每日 WOD 库，不把随机变化当作完整力量周期，也不在疲劳时安排高技术动作竞速。\n\n关键变量：动作复杂度、负荷、次数、时间目标、训练经验和与力量训练的间隔。\n\n适用人群：已有基础动作能力、希望每周增加一至两次体能模块的训练者。\n\n如何监测：完成时间、动作质量、平均心率或主观强度、下一次力量训练表现。\n\n什么时候保持：体能训练可恢复、技术稳定且不干扰主项进步。\n\n什么时候调整：动作质量因计时下降、下肢高强度与力量主项冲突或恢复恶化时降低复杂度与总量。\n\n证据等级：抗阻与体能原则为 A；WOD 组合与缩放为 D 级实践素材。\n\n仍有哪些不确定性：随机 WOD 的长期剂量难以统一，需嵌入明确的周计划和恢复监测。\n"
     },
     {
       "id": "energy-balance",

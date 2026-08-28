@@ -35,5 +35,13 @@
 
 ## D 级：免费公开实践模板
 
-GZCL/GZCLP、TSA 9-Week、Barbell Medicine Beginner Prescription/Strongman Template、r/bodyweightfitness Recommended Routine 和 CrossFit WOD 只用于理解实践结构。练途不内置其原表格、文案或品牌化计划，只实现有学术来源支持的通用训练原则。
+| ID | 来源 | 学习内容 | 使用边界 |
+| --- | --- | --- | --- |
+| `gzcl-public` | GZCL Applications and Adaptations | T1/T2/T3 分层、失败后的单动作调整 | 不复制任何具体变体表格 |
+| `tsa-freebies` | The Strength Athlete Free Resources | RPE、自我调节、积累—强化—评估结构 | 不复制 9 周原始表格 |
+| `bbm-beginner` | Barbell Medicine Beginner Prescription | 新手保守起步、器械/哑铃/杠铃入口 | 不复制五周计划表 |
+| `bbm-strongman` | Barbell Medicine Free Strongman | 搬运、抓握、髋铰链、过顶与体能结构 | 不复制免费 PDF 表格 |
+| `bwf-rr` | r/bodyweightfitness Recommended Routine | 徒手动作进阶与推拉平衡 | 不复制完整训练安排 |
+| `crossfit-wod` | CrossFit WOD 与缩放资料 | 体能组合、动作替代、负荷与次数缩放 | 不内置 WOD 库，不替代力量主项进阶 |
 
+以上资料只用于理解实践结构。练途不内置其原表格、文案或品牌化计划，只实现有 A/B 级来源约束的通用训练原则。

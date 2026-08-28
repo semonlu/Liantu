@@ -1,5 +1,6 @@
 # dependencies
 /node_modules
+/.pip_deps/
 /.pnp
 .pnp.*
 .yarn/*
@@ -34,6 +35,7 @@ yarn-error.log*
 next-env.d.ts
 /dist/
 /dist-mobile/
+/release/
 /android/.gradle/
 /android/app/build/
 /android/local.properties

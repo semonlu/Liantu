@@ -11,6 +11,7 @@
 - 当日热量与宏量营养分析、剩余目标和后续餐建议。
 - 热量镜 v0.3.5 对齐模块：图片估重、本地营养库优先、克数修正和分量倍率。
 - 模型连接支持 OpenAI Chat/Responses、Anthropic Messages、Gemini GenerateContent、Ollama 原生协议，以及智谱、DeepSeek、OpenRouter、硅基流动、LM Studio 和自定义兼容端点；APK 可连接本机或局域网 HTTP 端口。
+- 25 个内置动作全部具有离线示范图；wger 素材逐项保留 CC 署名，缺图动作使用统一灰白解剖风格的项目原创 AI 图片。
 - 离线训练、日历、历史和知识规则；联网只用于大模型、图片识别与资料更新。
 
 ## 开发与校验
@@ -20,6 +21,8 @@
 ```powershell
 npm install
 npm run knowledge:build
+npm run media:validate
+npm run model:validate
 node --experimental-strip-types scripts/validate-training.ts
 node --experimental-strip-types scripts/validate-nutrition.ts
 npm run build

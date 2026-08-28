@@ -6,6 +6,8 @@ import { assessDailyNutrition, enrichModelMeal, Meal, parseModelJson, recalculat
 import { bigModelRequest, chooseNativeImage, isNativeApp } from '@/lib/native-bridge';
 import { protocolLabels, providerPresets } from '@/lib/model-provider';
 import type { ModelConnection, ProviderProtocol } from '@/lib/model-provider';
+import { exerciseMedia } from '@/lib/exercise-media';
+import type { ExerciseMedia } from '@/lib/exercise-media';
 import {
   acceptPlanProposal, buildSession, createPlanProposal, defaultProfile, Equipment, ExerciseDefinition, ExerciseLog, goalLabels,
   PlanProposal, PlanVersion, recoveryRecommendations, splitLabel, TrainingDayCount, TrainingGoal, TrainingProfile, TrainingSession, WorkoutLog,
@@ -13,7 +15,6 @@ import {
 
 type Tab = 'today' | 'plan' | 'nutrition' | 'body' | 'settings';
 type Settings = ModelConnection & { target:number };
-type WgerMedia = { image?:string; video?:string; author:string; license:string; licenseUrl:string; description:string };
 type BodyMetric = { id:string;date:string;weightKg:number;bodyFatPercent:number;muscleMassKg:number;visceralFat:number;bmr:number;source:'report'|'manual';confidence:number;note:string;createdAt:number;reportType?:'body_composition'|'checkup' };
 type CoachPlan = { goal:TrainingGoal;daysPerWeek:TrainingDayCount;sessionMinutes:number;cycle:string;deload:string;rationale:string[];nutritionFocus:string;changeType?:'dose'|'structure' };
 
@@ -29,18 +30,6 @@ const ONBOARDING_KEY='liantu.onboarding.v1';
 const defaultSettings:Settings={
   providerId:'zhipu',protocol:'openai_chat',endpoint:'https://open.bigmodel.cn/api/paas/v4/chat/completions',
   model:'glm-5v-turbo',apiKey:'',customHeaders:'',target:2000,
-};
-
-const localExerciseMedia:Record<string,WgerMedia>={
-  leg_press:{image:'/exercises/wger/leg-press.png',author:'wger community',license:'CC-BY-SA 4',licenseUrl:'https://creativecommons.org/licenses/by-sa/4.0/deed.en',description:''},
-  bench:{image:'/exercises/wger/bench-press.png',author:'Everkinetic',license:'CC-BY-SA 3',licenseUrl:'https://creativecommons.org/licenses/by-sa/3.0/deed.en',description:''},
-  lat_pulldown:{image:'/exercises/wger/lat-pulldown.jpg',author:'Franpol',license:'CC-BY-SA 4',licenseUrl:'https://creativecommons.org/licenses/by-sa/4.0/deed.en',description:''},
-  leg_curl:{image:'/exercises/wger/leg-curl.jpg',author:'Everkinetic',license:'CC-BY-SA 3',licenseUrl:'https://creativecommons.org/licenses/by-sa/3.0/deed.en',description:''},
-  leg_extension:{image:'/exercises/wger/leg-extension.jpg',author:'Franpol',license:'CC-BY-SA 4',licenseUrl:'https://creativecommons.org/licenses/by-sa/4.0/deed.en',description:''},
-  cable_row:{image:'/exercises/wger/cable-row.jpg',author:'Franpol',license:'CC-BY-SA 4',licenseUrl:'https://creativecommons.org/licenses/by-sa/4.0/deed.en',description:''},
-  press:{image:'/exercises/wger/shoulder-press.jpg',author:'Everkinetic',license:'CC-BY-SA 3',licenseUrl:'https://creativecommons.org/licenses/by-sa/3.0/deed.en',description:''},
-  triceps:{image:'/exercises/wger/triceps-pushdown.jpg',author:'anto.kreegyr',license:'CC-BY-SA 4',licenseUrl:'https://creativecommons.org/licenses/by-sa/4.0/deed.en',description:''},
-  chest_fly:{image:'/exercises/wger/chest-fly.png',author:'wger community',license:'CC-BY-SA 4',licenseUrl:'https://creativecommons.org/licenses/by-sa/4.0/deed.en',description:''},
 };
 
 const localDateKey=(time:number|Date) => {
@@ -99,7 +88,7 @@ export default function Home() {
   const [activeLogs,setActiveLogs]=useState<ExerciseLog[]>([]);
   const [workoutNote,setWorkoutNote]=useState('');
   const [detail,setDetail]=useState<ExerciseDefinition|null>(null);
-  const [media,setMedia]=useState<WgerMedia|null>(null);
+  const [media,setMedia]=useState<ExerciseMedia|null>(null);
   const [recoveryAfter,setRecoveryAfter]=useState<TrainingSession|null>(null);
   const [calendarMonth,setCalendarMonth]=useState(()=>new Date(now.getFullYear(),now.getMonth(),1));
   const [selectedPlanDate,setSelectedPlanDate]=useState(localDateKey(now));
@@ -139,12 +128,12 @@ export default function Home() {
     queueMicrotask(()=>{
       if(cancelled)return;
       setMedia(null);
-      const local=detail?localExerciseMedia[detail.id]:null;
+      const local=detail?exerciseMedia[detail.id]:null;
       if(local){setMedia(local);return;}
-      if(detail?.id==='dead_bug'||!detail?.wgerId)return;
+      if(!detail?.wgerId)return;
       fetch(`/api/wger?id=${detail.wgerId}`).then(async(response)=>{
         if(!response.ok)throw new Error('动作媒体加载失败');
-        return await response.json() as WgerMedia;
+        return {...await response.json() as Omit<ExerciseMedia,'source'>,source:'wger'} as ExerciseMedia;
       }).then((value)=>{if(!cancelled)setMedia(value);}).catch(()=>{if(!cancelled)setMedia(null);});
     });
     return ()=>{cancelled=true;};
@@ -398,16 +387,16 @@ function WorkoutSheet({session,logs,note,update,setNote,close,finish,showDetail}
 }
 
 function ExerciseThumb({exercise}:{exercise:ExerciseDefinition}) {
-  const fallback=localExerciseMedia[exercise.id]?.image||(exercise.id==='dead_bug'?'/exercises/dead-bug.png':'');
+  const fallback=exerciseMedia[exercise.id]?.image||'';
   const [source,setSource]=useState(fallback);
   useEffect(()=>{
     let cancelled=false;
     queueMicrotask(()=>{
       if(cancelled)return;
-      if(exercise.id==='dead_bug'||localExerciseMedia[exercise.id]||!exercise.wgerId){setSource(fallback);return;}
+      if(exerciseMedia[exercise.id]||!exercise.wgerId){setSource(fallback);return;}
       fetch(`/api/wger?id=${exercise.wgerId}`).then(async(response)=>{
         if(!response.ok)throw new Error('动作图片加载失败');
-        return await response.json() as WgerMedia;
+        return await response.json() as ExerciseMedia;
       }).then((item)=>{if(!cancelled)setSource(item.image||fallback);}).catch(()=>{if(!cancelled)setSource(fallback);});
     });
     return ()=>{cancelled=true;};
@@ -420,9 +409,8 @@ function RecoverySheet({session,close}:{session:TrainingSession;close:()=>void})
   return <div className="workout-overlay recovery-overlay"><section className="recovery-sheet"><header><div><small>训练完成</small><h2>拉伸与恢复建议</h2></div><button onClick={close}>完成</button></header><p className="recovery-intro">根据本次 {session.title} 的主要训练肌群生成。三种方式任选其一，也可以先徒手拉伸再选择一种工具放松。</p>{items.map((item)=><article key={item.area}><div className="recovery-area"><span>◎</span><b>{item.area}</b></div><div><b>纯动作</b><p>{item.stretch}</p></div><div><b>泡沫轴</b><p>{item.foam}</p></div><div><b>筋膜枪</b><p>{item.massageGun}</p></div></article>)}<button className="primary-action action-button" onClick={close}>完成本次恢复</button></section></div>;
 }
 
-function ExerciseSheet({exercise,media,close}:{exercise:ExerciseDefinition;media:WgerMedia|null;close:()=>void}) {
-  const generated=exercise.id==='dead_bug'?'/exercises/dead-bug.png':'';
-  return <div className="modal-backdrop detail-layer" onClick={close}><section className="exercise-sheet" onClick={(event)=>event.stopPropagation()}><span className="sheet-handle"/>{media?.video?<video controls playsInline src={media.video}/>:media?.image?<img src={media.image} alt={`${exercise.name}动作示范`}/>:generated?<><img src={generated} alt={`${exercise.name} AI 动作示意`}/><small className="ai-media-tag">AI 生成动作示意</small></>:<div className="movement-placeholder"><span>↕</span><small>动作示范加载中或暂无媒体</small></div>}<p className="section-kicker">{exercise.target}</p><h2>{exercise.name}</h2><p className="english-name">{exercise.englishName}</p><ol>{exercise.cues.map((cue,index)=><li key={cue}><b>{index+1}</b><span>{cue}</span></li>)}</ol><p className="easier"><b>需要降低难度：</b>{exercise.easier}</p>{media?.image&&<p className="attribution">动作媒体：{media.author||'wger 社区'} · <a href={media.licenseUrl} target="_blank" rel="noreferrer">{media.license}</a> · 来源 wger</p>}<button className="primary-action action-button" onClick={close}>返回训练</button></section></div>;
+function ExerciseSheet({exercise,media,close}:{exercise:ExerciseDefinition;media:ExerciseMedia|null;close:()=>void}) {
+  return <div className="modal-backdrop detail-layer" onClick={close}><section className="exercise-sheet" onClick={(event)=>event.stopPropagation()}><span className="sheet-handle"/>{media?.video?<video controls playsInline src={media.video}/>:media?.image?<><img src={media.image} alt={`${exercise.name}动作示范`}/>{media.source==='ai'&&<small className="ai-media-tag">AI 生成动作示意</small>}</>:<div className="movement-placeholder"><span>↕</span><small>动作示范加载中或暂无媒体</small></div>}<p className="section-kicker">{exercise.target}</p><h2>{exercise.name}</h2><p className="english-name">{exercise.englishName}</p><ol>{exercise.cues.map((cue,index)=><li key={cue}><b>{index+1}</b><span>{cue}</span></li>)}</ol><p className="easier"><b>需要降低难度：</b>{exercise.easier}</p>{media?.image&&<p className="attribution">{media.source==='ai'?<>动作媒体：AI 生成 · 练途项目原创资产</>:<>动作媒体：{media.author||'wger 社区'} · <a href={media.licenseUrl} target="_blank" rel="noreferrer">{media.license}</a> · 来源 wger</>}</p>}<button className="primary-action action-button" onClick={close}>返回训练</button></section></div>;
 }
 
 function ResultCard({meal,imageData,updateGrams,saveMeal,reset}:{meal:Meal;imageData:string;updateGrams:(id:string,value:string)=>void;saveMeal:()=>void;reset:()=>void}) {

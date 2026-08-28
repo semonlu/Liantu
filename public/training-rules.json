@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T16:48:31.161Z",
+  "generatedAt": "2026-08-28T17:25:16.766Z",
   "rules": [
     {
       "id": "evidence-source-required",
@@ -434,6 +434,110 @@
       "priority": 100,
       "sourceIds": [
         "acsm-2026"
+      ]
+    },
+    {
+      "id": "open-engine-behavior-only",
+      "cardId": "open-source-training-engines",
+      "condition": "参考开源训练应用设计计划引擎",
+      "target": "copiedAgplImplementationCount",
+      "min": 0,
+      "max": 0,
+      "priority": 100,
+      "sourceIds": [
+        "liftosaur",
+        "wger",
+        "workout-cool"
+      ]
+    },
+    {
+      "id": "media-license-per-item",
+      "cardId": "open-source-training-engines",
+      "condition": "动作媒体打包进离线应用",
+      "target": "requiredLicenseRecordsPerAsset",
+      "min": 1,
+      "max": 1,
+      "priority": 100,
+      "sourceIds": [
+        "wger"
+      ]
+    },
+    {
+      "id": "gzcl-cover-t1-t2-t3",
+      "cardId": "gzcl-tier-framework",
+      "condition": "生成以力量或增肌为目标的训练日",
+      "target": "coveredExerciseRoleCount",
+      "min": 3,
+      "max": 3,
+      "priority": 80,
+      "sourceIds": [
+        "acsm-2026",
+        "gzcl-public"
+      ]
+    },
+    {
+      "id": "intermediate-block-rpe-autoregulation",
+      "cardId": "intermediate-rpe-block",
+      "condition": "中级力量计划进入积累强化或评估阶段",
+      "target": "rpeAutoregulationEnabled",
+      "min": 1,
+      "max": 1,
+      "priority": 90,
+      "sourceIds": [
+        "autoreg-2021",
+        "tsa-freebies"
+      ]
+    },
+    {
+      "id": "beginner-start-submaximal",
+      "cardId": "beginner-prescription",
+      "condition": "首次或恢复训练且初始能力不确定",
+      "target": "startingSessionRpe",
+      "min": 6,
+      "max": 7,
+      "priority": 95,
+      "sourceIds": [
+        "acsm-2026",
+        "bbm-beginner"
+      ]
+    },
+    {
+      "id": "functional-cover-carry-brace-hinge-press",
+      "cardId": "functional-strongman",
+      "condition": "目标包含功能性力量",
+      "target": "functionalMovementPatternCount",
+      "min": 4,
+      "max": 7,
+      "priority": 80,
+      "sourceIds": [
+        "acsm-2026",
+        "bbm-strongman"
+      ]
+    },
+    {
+      "id": "bodyweight-progress-one-variable",
+      "cardId": "bodyweight-progression",
+      "condition": "徒手动作连续达到当前变式次数上限",
+      "target": "progressionVariablesChanged",
+      "min": 1,
+      "max": 1,
+      "priority": 75,
+      "sourceIds": [
+        "acsm-2026",
+        "bwf-rr"
+      ]
+    },
+    {
+      "id": "wod-does-not-replace-strength-progression",
+      "cardId": "crossfit-scaling-library",
+      "condition": "将 WOD 用作体能模块",
+      "target": "automaticStrengthPlanReplacement",
+      "min": 0,
+      "max": 0,
+      "priority": 100,
+      "sourceIds": [
+        "acsm-2026",
+        "crossfit-wod"
       ]
     }
   ]

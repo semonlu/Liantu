@@ -124,7 +124,7 @@ export const defaultProfile: TrainingProfile = {
   sleepHours:7.5, readiness:3, painAreas:[], cardioActivities:[],
 };
 
-const catalog: Record<string,ExerciseDefinition> = {
+export const exerciseCatalog: Record<string,ExerciseDefinition> = {
   leg_press:{ id:'leg_press',name:'腿举机',englishName:'Leg Press',target:'下肢 · 蹲推',equipment:['gym'],wgerId:371,
     cues:['调整座椅，让膝盖在底部保持舒适角度','脚掌全程贴稳踏板，膝盖跟随脚尖','控制下放，不在顶端锁死膝盖'],easier:'减轻配重并缩小下放幅度' },
   bench:{ id:'bench',name:'杠铃卧推',englishName:'Bench Press',target:'胸肩 · 水平推',equipment:['gym'],wgerId:73,
@@ -176,6 +176,8 @@ const catalog: Record<string,ExerciseDefinition> = {
   walk:{ id:'walk',name:'快走或轻松慢跑',englishName:'Brisk Walk or Easy Run',target:'心肺 · 有氧基础',equipment:['bodyweight','dumbbell','gym'],
     cues:['用可持续、能说短句的速度','身体放松，步频自然','结束前逐步降低速度'],easier:'舒适步速散步' },
 };
+
+const catalog = exerciseCatalog;
 
 type RecipeItem = { id:string; role:ExerciseRole };
 type SessionRecipe = { title:string; focus:string; objective:string; met:number; circuit?:boolean; items:RecipeItem[] };

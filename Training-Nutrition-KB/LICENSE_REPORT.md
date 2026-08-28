@@ -15,13 +15,13 @@
 ## 公开阅读但不复制模板的资料
 
 - ACSM 2026、Autoregulation 2021、ISSN、AIS：保存官方公开页面或引用链接，只写原创摘要与规则。
-- GZCL、TSA、Barbell Medicine：只总结分化、阶段和自我调节思想，不内置原始表格或逐字模板。
+- GZCL、TSA、Barbell Medicine、r/bodyweightfitness Recommended Routine、CrossFit WOD：只总结分化、阶段、进阶、缩放和自我调节思想，不内置原始表格或逐字模板。
 
 ## 开源程序参考边界
 
 - Liftosaur 与 wger 的程序代码为 AGPL 系列许可证。本项目只研究公开行为、数据结构和接口思想，不复制其 AGPL 源码。
-- 动作媒体逐项记录作者、许可证与来源；当前 App 中的 wger 媒体署名信息保存在 `app/page.tsx` 的 `localExerciseMedia`。
+- 动作媒体逐项记录作者、许可证与来源；清单保存在 `exercise-media.json`。wger 图片仅打包已确认 Creative Commons 许可的条目，缺图动作使用无品牌、无水印的项目原创 AI 示意图。
 
 ## 构建校验
 
-`npm run knowledge:build` 会检查：来源许可证说明、本地文件存在、知识卡必填段落、规则来源、未知来源、重复规则以及上下限冲突。当前结果为 18 个来源、11 张中文知识卡、35 条结构化规则。
+`npm run knowledge:build` 会检查：来源许可证说明、本地文件存在、知识卡必填段落、规则来源、未知来源、重复规则以及上下限冲突。`npm run media:validate` 会检查每个内置动作都有离线图片，并验证 wger 署名字段完整。
