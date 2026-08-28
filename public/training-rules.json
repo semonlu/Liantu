@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T17:25:16.766Z",
+  "generatedAt": "2026-08-28T17:41:24.037Z",
   "rules": [
     {
       "id": "evidence-source-required",
@@ -185,6 +185,19 @@
       "priority": 100,
       "sourceIds": [
         "iusca-2021"
+      ]
+    },
+    {
+      "id": "initial-main-load-from-1rm",
+      "cardId": "progressive-overload",
+      "condition": "主要动作有可信 1RM 且没有历史工作重量",
+      "target": "initialWorkingPercent1RM",
+      "min": 60,
+      "max": 75,
+      "priority": 92,
+      "sourceIds": [
+        "acsm-2026",
+        "autoreg-2021"
       ]
     },
     {

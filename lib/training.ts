@@ -3,6 +3,8 @@ export type TrainingLevel = 'beginner' | 'intermediate';
 export type Equipment = 'bodyweight' | 'dumbbell' | 'gym' | 'mixed';
 export type TrainingDayCount = 2 | 3 | 4 | 5 | 6;
 export type ExerciseRole = 'T1' | 'T2' | 'T3' | 'conditioning' | 'recovery';
+export type MainLiftKey = 'bench' | 'squat' | 'deadlift' | 'overheadPress' | 'legPress';
+export type MainLiftOneRm = Record<MainLiftKey,number>;
 
 export type TrainingProfile = {
   goal: TrainingGoal;
@@ -11,6 +13,7 @@ export type TrainingProfile = {
   daysPerWeek: TrainingDayCount;
   sessionMinutes: number;
   weightKg: number;
+  mainLift1RM: MainLiftOneRm;
   startDate: string;
   sleepHours?: number;
   readiness?: 1 | 2 | 3 | 4 | 5;
@@ -36,6 +39,9 @@ export type ExercisePrescription = ExerciseDefinition & {
   restSeconds: number;
   targetRpe: number;
   progressionNote: string;
+  suggestedWeightKg?: number;
+  loadPercent1RM?: number;
+  weightBasis?: string;
 };
 
 export type TrainingSession = {
@@ -62,6 +68,7 @@ export type ExerciseLog = {
   reps: string;
   weightKg: number;
   rpe: number;
+  plannedSets?: number;
 };
 
 export type WorkoutLog = {
@@ -118,9 +125,14 @@ export const goalLabels: Record<TrainingGoal,string> = {
   fat_loss:'减脂', strength:'力量', hypertrophy:'增肌', endurance:'耐力', circuit:'循环', functional:'功能性',
 };
 
+export const mainLiftLabels:Record<MainLiftKey,string>={
+  bench:'杠铃卧推',squat:'深蹲',deadlift:'硬拉',overheadPress:'站姿推举',legPress:'腿举机',
+};
+
 export const defaultProfile: TrainingProfile = {
   goal:'strength', level:'beginner', equipment:'gym', daysPerWeek:3,
   sessionMinutes:60, weightKg:65, startDate:new Date().toISOString().slice(0,10),
+  mainLift1RM:{bench:0,squat:0,deadlift:0,overheadPress:0,legPress:0},
   sleepHours:7.5, readiness:3, painAreas:[], cardioActivities:[],
 };
 
@@ -295,6 +307,55 @@ function progressionFor(exerciseId:string,role:ExerciseRole,logs:WorkoutLog[]) {
   return role==='T1'?'保留约 2 次余力；完成全部目标组次后再加重。':'使用双重进阶：先加次数，再加最小配重。';
 }
 
+const oneRmBasis:Partial<Record<string,{key:MainLiftKey;factor:number;label:string}>>={
+  bench:{key:'bench',factor:1,label:'卧推 1RM'},
+  squat:{key:'squat',factor:1,label:'深蹲 1RM'},
+  leg_press:{key:'legPress',factor:1,label:'腿举机 1RM'},
+  rdl:{key:'deadlift',factor:.72,label:'硬拉 1RM 换算'},
+  press:{key:'overheadPress',factor:1,label:'推举 1RM'},
+};
+
+function roundLoad(value:number,exerciseId:string) {
+  const step=exerciseId==='leg_press'?5:2.5;
+  return Math.max(step,Math.round(value/step)*step);
+}
+
+function percentFor(goal:TrainingGoal,role:ExerciseRole,phase:TrainingSession['phase']) {
+  let percent=goal==='strength'?(role==='T1' ? .72 : .64):goal==='hypertrophy'?(role==='T1' ? .66 : .58):.6;
+  if(phase==='积累')percent-=.02;
+  if(phase==='强化')percent+=goal==='strength'?.08:.04;
+  if(phase==='评估')percent-=.04;
+  if(phase==='减载')percent=.52;
+  return Math.min(.85,Math.max(.45,percent));
+}
+
+function weightPrescription(profile:TrainingProfile,exerciseId:string,role:ExerciseRole,phase:TrainingSession['phase'],sets:number,logs:WorkoutLog[]) {
+  if(['conditioning','recovery'].includes(role))return {};
+  const recent=[...logs].sort((a,b)=>b.completedAt-a.completedAt)
+    .flatMap((log)=>log.exercises.filter((item)=>item.exerciseId===exerciseId&&item.weightKg>0)).slice(0,2);
+  const last=recent[0];
+  const failed=(item:ExerciseLog)=>item.rpe>=9.5||item.completedSets<Math.max(1,item.plannedSets??sets);
+  const completed=(item:ExerciseLog)=>item.rpe<=8&&item.completedSets>=Math.max(1,item.plannedSets??sets);
+  if(recent.length===2&&recent.every(failed)){
+    const suggestedWeightKg=roundLoad(last.weightKg*.925,exerciseId);
+    return {suggestedWeightKg,weightBasis:`连续两次未完成，较上次 ${last.weightKg} kg 回退约 7.5%`};
+  }
+  if(recent.length===2&&recent.every(completed)){
+    const increase=role==='T1'?1.025:1.02;
+    const suggestedWeightKg=roundLoad(last.weightKg*increase,exerciseId);
+    return {suggestedWeightKg,weightBasis:`连续两次完成且 RPE≤8，由 ${last.weightKg} kg 小幅加重`};
+  }
+  if(last){
+    return {suggestedWeightKg:roundLoad(last.weightKg,exerciseId),weightBasis:failed(last)?`上次未完成，先保持 ${last.weightKg} kg 复测`:`沿用上次完成重量 ${last.weightKg} kg`};
+  }
+  const basis=oneRmBasis[exerciseId];
+  const oneRm=basis?(profile.mainLift1RM?.[basis.key]??0):0;
+  if(!basis||oneRm<=0)return {weightBasis:'暂无 1RM 或历史重量；首组从 RPE 6–7 的保守重量校准'};
+  const percent=percentFor(profile.goal,role,phase);
+  const suggestedWeightKg=roundLoad(oneRm*basis.factor*percent,exerciseId);
+  return {suggestedWeightKg,loadPercent1RM:Math.round(percent*basis.factor*100),weightBasis:`按${basis.label}与${phase}阶段计算`};
+}
+
 function recoverySession(profile:TrainingProfile,date:string,week:number):TrainingSession {
   const duration=Math.min(30,Math.max(15,Math.round(profile.sessionMinutes*.5)));
   return {
@@ -336,7 +397,8 @@ export function buildSession(profile:TrainingProfile,dateValue:Date,logs:Workout
     const id=equipmentVariant(rawId,profile);
     const definition=catalog[id];
     const dose=doseFor(profile.goal,role,phase);
-    return {...definition,role,...dose,progressionNote:progressionFor(id,role,logs)};
+    const weight=weightPrescription(profile,id,role,phase,dose.sets,logs);
+    return {...definition,role,...dose,...weight,progressionNote:progressionFor(id,role,logs)};
   });
   const adjustment=deload
     ? `检测到 ${signals} 项累计疲劳信号，生成主动减载建议：保留动作，工作组数降低约 30%–50%，目标 RPE 6。`

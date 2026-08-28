@@ -14,6 +14,7 @@
   {"id":"split-4-upper-lower","cardId":"split-selection","condition":"每周可训练4天","target":"splitCode","min":4,"max":4,"priority":100,"sourceIds":["acsm-2026","tsa-freebies"]},
   {"id":"split-5-upper-lower-conditioning","cardId":"split-selection","condition":"每周可训练5天且目标包含体能","target":"splitCode","min":5,"max":5,"priority":100,"sourceIds":["acsm-2026"]},
   {"id":"split-6-ppl","cardId":"split-selection","condition":"每周可训练6天且恢复条件良好","target":"splitCode","min":6,"max":6,"priority":100,"sourceIds":["iusca-2021"]},
+  {"id":"initial-main-load-from-1rm","cardId":"progressive-overload","condition":"主要动作有可信 1RM 且没有历史工作重量","target":"initialWorkingPercent1RM","min":60,"max":75,"priority":92,"sourceIds":["acsm-2026","autoreg-2021"]},
   {"id":"main-linear-progression","cardId":"progressive-overload","condition":"新手主项完成全部目标组次","target":"loadIncrementPercent","min":2,"max":5,"priority":90,"sourceIds":["acsm-2026","autoreg-2021"]},
   {"id":"accessory-double-progression","cardId":"progressive-overload","condition":"辅助动作达到次数区间上限","target":"loadIncrementPercent","min":2,"max":5,"priority":85,"sourceIds":["acsm-2026"]},
   {"id":"repeated-failure-reset","cardId":"progressive-overload","condition":"同一动作连续两次未完成最低目标次数","target":"loadResetPercent","min":5,"max":10,"priority":95,"sourceIds":["autoreg-2021","liftosaur"]},
