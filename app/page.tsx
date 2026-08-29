@@ -9,8 +9,8 @@ import type { ModelConnection, ProviderProtocol } from '@/lib/model-provider';
 import { exerciseMedia } from '@/lib/exercise-media';
 import type { ExerciseMedia } from '@/lib/exercise-media';
 import {
-  acceptPlanProposal, buildSession, createPlanProposal, defaultProfile, Equipment, ExerciseDefinition, ExerciseLog, goalLabels,
-  mainLiftLabels, MainLiftKey, PlanProposal, PlanVersion, recoveryRecommendations, splitLabel, TrainingDayCount, TrainingGoal, TrainingProfile, TrainingSession, WorkoutLog,
+  acceptPlanProposal, applySessionOverride, buildSession, createCustomExercise, createPlanProposal, DailySessionOverride, defaultProfile, Equipment, ExerciseDefinition, ExerciseLog, ExercisePrescription, exerciseCatalog, goalLabels,
+  mainLiftLabels, MainLiftKey, PlanProposal, PlanVersion, recoveryRecommendations, splitLabel, splitSchedule, TrainingDayCount, TrainingGoal, TrainingProfile, TrainingSession, WorkoutLog,
 } from '@/lib/training';
 
 type Tab = 'today' | 'plan' | 'nutrition' | 'coach' | 'body' | 'settings';
@@ -31,6 +31,7 @@ const PLAN_PROPOSALS_KEY='liantu.plan-proposals.v1';
 const ONBOARDING_KEY='liantu.onboarding.v1';
 const ENERGY_KEY='liantu.energy-adjustments.v1';
 const CHAT_KEY='liantu.coach-chat.v1';
+const SESSION_OVERRIDES_KEY='liantu.session-overrides.v1';
 
 const defaultSettings:Settings={
   providerId:'zhipu',protocol:'openai_chat',endpoint:'https://open.bigmodel.cn/api/paas/v4/chat/completions',
@@ -112,6 +113,8 @@ export default function Home() {
   const [chatMessages,setChatMessages]=useState<ChatMessage[]>([]);
   const [chatInput,setChatInput]=useState('');
   const [connectionTest,setConnectionTest]=useState<{kind:'testing'|'success'|'error';message:string}|null>(null);
+  const [sessionOverrides,setSessionOverrides]=useState<Record<string,DailySessionOverride>>({});
+  const [editingSession,setEditingSession]=useState<TrainingSession|null>(null);
 
   useEffect(()=>{
     if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>undefined);
@@ -120,7 +123,7 @@ export default function Home() {
         const savedSettings=localStorage.getItem(SETTINGS_KEY),savedMeals=localStorage.getItem(MEALS_KEY);
         const savedProfile=localStorage.getItem(PROFILE_KEY),savedLogs=localStorage.getItem(LOGS_KEY),savedBody=localStorage.getItem(BODY_KEY);
         const savedVersions=localStorage.getItem(PLAN_VERSIONS_KEY),savedProposals=localStorage.getItem(PLAN_PROPOSALS_KEY);
-        const savedEnergy=localStorage.getItem(ENERGY_KEY),savedChat=localStorage.getItem(CHAT_KEY);
+        const savedEnergy=localStorage.getItem(ENERGY_KEY),savedChat=localStorage.getItem(CHAT_KEY),savedOverrides=localStorage.getItem(SESSION_OVERRIDES_KEY);
         if(savedSettings)setSettings({...defaultSettings,...JSON.parse(savedSettings)});
         if(savedMeals)setMeals(JSON.parse(savedMeals));
         const parsedProfile=savedProfile?JSON.parse(savedProfile) as Partial<TrainingProfile>:null;
@@ -133,6 +136,7 @@ export default function Home() {
         if(savedProposals)setPlanProposals(JSON.parse(savedProposals));
         if(savedEnergy)setEnergyAdjustments(JSON.parse(savedEnergy));
         if(savedChat)setChatMessages(JSON.parse(savedChat));
+        if(savedOverrides)setSessionOverrides(JSON.parse(savedOverrides));
         if(!localStorage.getItem(ONBOARDING_KEY))setShowOnboarding(true);
       }catch{setNotice('部分本机记录无法读取，已使用默认设置');}
       setReady(true);
@@ -146,6 +150,7 @@ export default function Home() {
   useEffect(()=>{if(ready)localStorage.setItem(PLAN_PROPOSALS_KEY,JSON.stringify(planProposals));},[planProposals,ready]);
   useEffect(()=>{if(ready)localStorage.setItem(ENERGY_KEY,JSON.stringify(energyAdjustments));},[energyAdjustments,ready]);
   useEffect(()=>{if(ready)localStorage.setItem(CHAT_KEY,JSON.stringify(chatMessages));},[chatMessages,ready]);
+  useEffect(()=>{if(ready)localStorage.setItem(SESSION_OVERRIDES_KEY,JSON.stringify(sessionOverrides));},[sessionOverrides,ready]);
   useEffect(()=>{
     let cancelled=false;
     queueMicrotask(()=>{
@@ -174,14 +179,15 @@ export default function Home() {
     };
   },[planVersions,profile]);
   const todayEffectiveProfile=profileAt(todayKey);
-  const todaySession=useMemo(()=>buildSession(todayEffectiveProfile,now,logs),[todayEffectiveProfile,now,logs]);
+  const todaySession=useMemo(()=>applySessionOverride(buildSession(todayEffectiveProfile,now,logs),sessionOverrides[todayKey]),[todayEffectiveProfile,now,logs,sessionOverrides,todayKey]);
   const calendar=useMemo(()=>{
     const first=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth(),1);
     const start=new Date(first);start.setDate(first.getDate()-((first.getDay()+6)%7));
-    return Array.from({length:42},(_,index)=>{const date=new Date(start);date.setDate(start.getDate()+index);const dateProfile=profileAt(localDateKey(date));return {date,profile:dateProfile,session:buildSession(dateProfile,date,logs),inMonth:date.getMonth()===calendarMonth.getMonth()};});
-  },[calendarMonth,profileAt,logs]);
+    return Array.from({length:42},(_,index)=>{const date=new Date(start);date.setDate(start.getDate()+index);const key=localDateKey(date);const dateProfile=profileAt(key);return {date,profile:dateProfile,session:applySessionOverride(buildSession(dateProfile,date,logs),sessionOverrides[key]),inMonth:date.getMonth()===calendarMonth.getMonth()};});
+  },[calendarMonth,profileAt,logs,sessionOverrides]);
   const selectedProfile=profileAt(selectedPlanDate);
-  const selectedSession=useMemo(()=>buildSession(selectedProfile,new Date(`${selectedPlanDate}T12:00:00`),logs),[selectedProfile,selectedPlanDate,logs]);
+  const selectedSession=useMemo(()=>applySessionOverride(buildSession(selectedProfile,new Date(`${selectedPlanDate}T12:00:00`),logs),sessionOverrides[selectedPlanDate]),[selectedProfile,selectedPlanDate,logs,sessionOverrides]);
+  const selectedDayCompleted=useMemo(()=>logs.some((log)=>log.date===selectedPlanDate),[logs,selectedPlanDate]);
   const todayLogs=useMemo(()=>logs.filter((log)=>log.date===todayKey),[logs,todayKey]);
   const sortedBody=useMemo(()=>[...bodyMetrics].sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt),[bodyMetrics]);
   const latestBody=sortedBody[0];
@@ -317,6 +323,18 @@ export default function Home() {
     setActiveLogs(session.exercises.map((exercise)=>({exerciseId:exercise.id,completedSets:0,plannedSets:exercise.sets,reps:exercise.reps,weightKg:exercise.suggestedWeightKg??0,rpe:exercise.targetRpe})));
   };
   const updateActive=(exerciseId:string,patch:Partial<ExerciseLog>)=>setActiveLogs((items)=>items.map((item)=>item.exerciseId===exerciseId?{...item,...patch}:item));
+  const saveSessionOverride=(session:TrainingSession)=>{
+    const override:DailySessionOverride={date:session.date,updatedAt:Date.now(),exercises:session.exercises.map((exercise)=>({
+      exerciseId:exercise.id,role:exercise.role,sets:exercise.sets,reps:exercise.reps,restSeconds:exercise.restSeconds,targetRpe:exercise.targetRpe,
+      ...(exercise.suggestedWeightKg!==undefined?{suggestedWeightKg:exercise.suggestedWeightKg}:{}),
+    }))};
+    setSessionOverrides((items)=>({...items,[session.date]:override}));setEditingSession(null);
+    setNotice(`已保存 ${session.date} 的临时训练，只修改这一天。`);
+  };
+  const restoreSessionOverride=(date:string)=>{
+    setSessionOverrides((items)=>{const next={...items};delete next[date];return next;});setEditingSession(null);
+    setNotice(`已恢复 ${date} 的系统周期安排。`);
+  };
   const finishWorkout=()=>{
     if(!activeSession)return;
     const planned=activeSession.exercises.reduce((sum,item)=>sum+item.sets,0);
@@ -425,11 +443,12 @@ export default function Home() {
 
     {tab==='plan'&&<section className="plan-stack">
       <section className="prescription-card"><div className="prescription-head"><div><p className="section-kicker">当前训练处方</p><h2>{goalLabels[todayEffectiveProfile.goal]} · {todaySession.split}</h2></div><span>规则编译</span></div><div className="prescription-flow"><div><b>目标</b><span>{goalLabels[todayEffectiveProfile.goal]}</span></div><i>→</i><div><b>结构</b><span>T1 / T2 / T3</span></div><i>→</i><div><b>反馈</b><span>RPE + 完成率</span></div></div><ul><li>每周 {todayEffectiveProfile.daysPerWeek} 练，按日历明确训练目标和周期阶段</li><li>新手使用线性与双重进阶，不固定整周减载</li><li>中级按积累、评估、强化组织；至少两项疲劳信号才建议减载</li><li>所有 AI 变化先成为待确认建议，拒绝后日历完全不变</li></ul></section>
+      <section className="split-detail-card"><div className="section-row"><div><p className="section-kicker">分化与组次</p><h2>{splitLabel(todayEffectiveProfile.daysPerWeek)}怎么练</h2></div><span>{todayEffectiveProfile.goal==='strength'?'力量组次':'目标自适应'}</span></div><div className="split-day-list">{splitSchedule(todayEffectiveProfile.daysPerWeek).map((day)=><article key={day.title}><b>{day.title}</b><small>{day.exercises.map((item)=>`${item.role} ${item.name}`).join(' · ')}</small></article>)}</div><p>{todayEffectiveProfile.goal==='strength'?'基础期 T1 通常 4组×4–6次，强化期 5组×3–5次；T2 通常 3组×6–10次，T3 2组×10–15次。':'增肌主项通常 4组×6–10次，T2 3组×8–12次，T3 2组×10–15次；耐力和循环会提高次数并缩短休息。'} 5×5、4×8、3×12 或字面意义的 12×3 都可在当天编辑器中单独设置，不会把同一组次强套给所有动作。</p></section>
       <section className="cycle-map"><div className="section-row"><div><p className="section-kicker">系统安排周期</p><h2>{todayEffectiveProfile.level==='beginner'?'新手持续进阶':'8 周中级训练块'}</h2></div><span>当前：{todaySession.phase}</span></div><div>{Array.from({length:8},(_,index)=>{const weekNumber=index+1;const phase=todayEffectiveProfile.level==='beginner'?'基础':weekNumber<=3?'积累':weekNumber===4||weekNumber===8?'评估':'强化';const current=((todaySession.week-1)%8)+1===weekNumber;return <article key={weekNumber} className={`${phase} ${current?'current':''}`}><b>W{weekNumber}</b><small>{phase}</small></article>;})}</div><p>{todayEffectiveProfile.level==='beginner'?'每个动作连续两次失败才降重 5%–10%；没有固定第 8 周减载。':'第 4、8 周是检查点，不是自动减载周；只有表现、RPE、疼痛、睡眠或压力至少两项异常时才提出主动减载。'}</p></section>
       <section className="goal-card"><p className="section-kicker">训练目标</p><h2>计划首先围绕什么？</h2><div className="goal-grid">{(Object.keys(goalLabels) as TrainingGoal[]).map((goal)=><button key={goal} className={profile.goal===goal?'active':''} onClick={()=>stageManualPlan({...profile,goal},`训练目标改为${goalLabels[goal]}`)}>{goalLabels[goal]}</button>)}</div></section>
       <section className="training-modes"><article><span>力</span><div><b>力量训练</b><small>T1 主项高质量输出，按 RPE 渐进</small></div></article><article><span>耐</span><div><b>耐力训练</b><small>稳态有氧与低技术门槛间歇</small></div></article><article><span>循</span><div><b>循环训练</b><small>器械推、拉、腿组合并控制休息</small></div></article><article><span>功</span><div><b>功能性训练</b><small>单腿、搬运、髋铰链与躯干稳定</small></div></article><article className="deload"><span>减</span><div><b>主动减载</b><small>只在累计疲劳满足规则时提出，仍需你确认</small></div></article></section>
       <section className="calendar-card"><header><button aria-label="上个月" onClick={()=>setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1))}>‹</button><div><p className="section-kicker">计划版本日历</p><h2>{calendarMonth.toLocaleDateString('zh-CN',{year:'numeric',month:'long'})}</h2></div><button aria-label="下个月" onClick={()=>setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+1,1))}>›</button></header><div className="calendar-weekdays">{['一','二','三','四','五','六','日'].map((item)=><span key={item}>{item}</span>)}</div><div className="calendar-grid">{calendar.map(({date,profile:dateProfile,session,inMonth})=>{const key=localDateKey(date);return <button key={key} className={`${inMonth?'':'outside'} ${key===todayKey?'today':''} ${key===selectedPlanDate?'selected':''} ${session.recovery?'rest':'train'}`} onClick={()=>setSelectedPlanDate(key)}><b>{date.getDate()}</b><small>{session.phase}</small><em>{session.recovery?'恢复':goalLabels[dateProfile.goal]}</em></button>;})}</div><div className="phase-legend"><span><i className="base"/>基础</span><span><i className="build"/>积累</span><span><i className="peak"/>强化</span><span><i className="base"/>评估</span><span><i className="deload"/>减载</span></div></section>
-      <section className="selected-day-card"><div className="section-row"><div><p className="section-kicker">{selectedPlanDate} · {selectedSession.phase}阶段</p><h2>{selectedSession.title}</h2></div><span>{selectedSession.recovery?'恢复日':`${selectedSession.durationMinutes} 分钟`}</span></div><p><b>当天目标：</b>{selectedSession.objective}</p><p>{selectedSession.focus}</p><div>{selectedSession.exercises.map((exercise)=><button key={exercise.id} onClick={()=>setDetail(exercise)}><ExerciseThumb exercise={exercise}/><span><b>{exercise.role} · {exercise.name}</b><small>{exercise.sets} 组 × {exercise.reps} · 目标 RPE {exercise.targetRpe}</small><small>{exercise.suggestedWeightKg?`建议 ${exercise.suggestedWeightKg} kg${exercise.loadPercent1RM?` · 约 ${exercise.loadPercent1RM}% 1RM`:''}`:'建议重量：首组按 RPE 6–7 校准'}</small></span><i>›</i></button>)}</div>{selectedPlanDate===todayKey&&<button className="primary-action action-button" onClick={()=>beginWorkout(selectedSession)}>开始今天训练</button>}</section>
+      <section className="selected-day-card"><div className="section-row"><div><p className="section-kicker">{selectedPlanDate} · {selectedSession.phase}阶段</p><h2>{selectedSession.title}</h2></div><span>{selectedSession.recovery?'恢复日':`${selectedSession.durationMinutes} 分钟`}</span></div><p><b>当天目标：</b>{selectedSession.objective}</p><p>{selectedSession.focus}</p><div className="selected-exercise-list">{selectedSession.exercises.map((exercise)=><button key={exercise.id} onClick={()=>setDetail(exercise)}><ExerciseThumb exercise={exercise}/><span><b>{exercise.role} · {exercise.name}</b><small>{exercise.sets} 组 × {exercise.reps} · 目标 RPE {exercise.targetRpe}</small><small>{exercise.suggestedWeightKg!==undefined?`建议 ${exercise.suggestedWeightKg} kg${exercise.loadPercent1RM?` · 约 ${exercise.loadPercent1RM}% 1RM`:''}`:'建议重量：首组按 RPE 6–7 校准'}</small></span><i>›</i></button>)}</div><div className="session-edit-actions"><button className="secondary-action action-button" disabled={selectedDayCompleted} onClick={()=>setEditingSession(selectedSession)}>{selectedDayCompleted?'已有训练记录，保留历史':'修改或添加当天动作'}</button>{sessionOverrides[selectedPlanDate]&&<button className="text-button" onClick={()=>restoreSessionOverride(selectedPlanDate)}>恢复系统安排</button>}</div>{selectedPlanDate===todayKey&&<button className="primary-action action-button" onClick={()=>beginWorkout(selectedSession)}>开始今天训练</button>}</section>
       <section className="plan-settings"><p className="section-kicker">提出计划变更</p><div className="segment-row"><span>每周训练</span><div>{([2,3,4,5,6] as TrainingDayCount[]).map((days)=><button key={days} className={profile.daysPerWeek===days?'active':''} onClick={()=>stageManualPlan({...profile,daysPerWeek:days},`改为${splitLabel(days)}`)}>{days} 天</button>)}</div></div><div className="segment-row"><span>器械条件</span><div>{([['bodyweight','徒手'],['dumbbell','哑铃'],['gym','健身房']] as [Equipment,string][]).map(([value,label])=><button key={value} className={profile.equipment===value?'active':''} onClick={()=>stageManualPlan({...profile,equipment:value},`器械条件改为${label}`)}>{label}</button>)}</div></div><button className="secondary-action action-button" onClick={undoLastPlan}>撤销上一计划版本</button></section>
       <section className="ai-plan-card"><div className="coach-orb">AI</div><div><p className="section-kicker">综合制定计划</p><h2>训练 + 饮食 + 体成分</h2><p>读取最近训练完成度、RPE、热量镜记录和八电极报告趋势，生成可核对再应用的计划参数。</p><button onClick={generateCoachPlan}>生成综合计划</button></div></section>
       {coachPlan&&<section className="proposal-card"><div className="section-row"><div><p className="section-kicker">待确认计划差异</p><h2>{goalLabels[coachPlan.before.goal]} → {goalLabels[coachPlan.after.goal]}</h2></div><span>{coachPlan.changeType==='structure'?'下周生效':'下次训练'}</span></div><p><b>分化：</b>{splitLabel(coachPlan.before.daysPerWeek)} → {splitLabel(coachPlan.after.daysPerWeek)}</p><p><b>时长：</b>{coachPlan.before.sessionMinutes} → {coachPlan.after.sessionMinutes} 分钟</p><p><b>生效日期：</b>{coachPlan.effectiveFrom}</p><ul>{coachPlan.rationale.map((item)=><li key={item}>{item}</li>)}</ul><div className="two-buttons"><button className="secondary-action action-button" onClick={rejectCoachPlan}>保持原计划</button><button className="primary-action action-button" onClick={applyCoachPlan}>应用调整</button></div></section>}
@@ -469,6 +488,7 @@ export default function Home() {
     <nav className="bottom-nav" aria-label="主导航"><button className={tab==='today'?'active':''} onClick={()=>setTab('today')}><span>▶</span>今日</button><button className={tab==='plan'?'active':''} onClick={()=>setTab('plan')}><span>▦</span>计划</button><button className={tab==='nutrition'?'active':''} onClick={()=>setTab('nutrition')}><span>◉</span>热量镜</button><button className={tab==='coach'?'active':''} onClick={()=>setTab('coach')}><span>AI</span>教练</button><button className={tab==='body'?'active':''} onClick={()=>setTab('body')}><span>⌁</span>身体</button><button className={tab==='settings'?'active':''} onClick={()=>setTab('settings')}><span>⚙</span>我的</button></nav>
 
     {activeSession&&<WorkoutSheet session={activeSession} logs={activeLogs} note={workoutNote} update={updateActive} setNote={setWorkoutNote} close={()=>setActiveSession(null)} finish={finishWorkout} showDetail={setDetail}/>}
+    {editingSession&&<SessionEditorSheet session={editingSession} save={saveSessionOverride} restore={()=>restoreSessionOverride(editingSession.date)} close={()=>setEditingSession(null)}/>}
     {detail&&<ExerciseSheet exercise={detail} media={media} close={()=>setDetail(null)}/>}
     {recoveryAfter&&<RecoverySheet session={recoveryAfter} close={()=>setRecoveryAfter(null)}/>}
     {installOpen&&<div className="modal-backdrop" onClick={()=>setInstallOpen(false)}><section className="install-sheet" onClick={(event)=>event.stopPropagation()}><span className="sheet-handle"/><p className="section-kicker">安装练途</p><h2>添加到主屏幕</h2><ol><li><b>1</b><span>使用 Safari 或 Chrome 打开当前网址</span></li><li><b>2</b><span>点击“分享”或浏览器菜单</span></li><li><b>3</b><span>选择“添加到主屏幕”或“安装应用”</span></li></ol><button className="primary-action action-button" onClick={()=>setInstallOpen(false)}>知道了</button></section></div>}
@@ -491,6 +511,19 @@ function OnboardingSheet({profile,settings,setProfile,setSettings,finish}:{profi
     <div className="settings-card"><p className="section-kicker">5 · 可选大模型</p><label>API 密钥<input type="password" autoComplete="off" value={settings.apiKey} onChange={(event)=>setSettings({...settings,apiKey:event.target.value})} placeholder="可跳过，之后在我的设置中填写"/></label></div>
     <div className="two-buttons"><button className="secondary-action action-button" onClick={()=>finish('body')}>先生成计划，再上传报告</button><button className="primary-action action-button" onClick={()=>finish('today')}>生成基础计划</button></div>
   </section></div>;
+}
+
+function SessionEditorSheet({session,save,restore,close}:{session:TrainingSession;save:(value:TrainingSession)=>void;restore:()=>void;close:()=>void}) {
+  const [draft,setDraft]=useState<ExercisePrescription[]>(session.exercises);
+  const [addId,setAddId]=useState('');
+  const update=(id:string,patch:Partial<ExercisePrescription>)=>setDraft((items)=>items.map((item)=>item.id===id?{...item,...patch}:item));
+  const add=()=>{
+    if(!addId||draft.some((item)=>item.id===addId))return;
+    setDraft((items)=>[...items,createCustomExercise(addId)]);setAddId('');
+  };
+  const preset=(id:string,sets:number,reps:number)=>update(id,{sets,reps:`${reps} 次`});
+  const available=Object.values(exerciseCatalog).filter((item)=>!draft.some((entry)=>entry.id===item.id));
+  return <div className="workout-overlay session-editor-overlay"><section className="session-editor-sheet"><header><button onClick={close}>取消</button><div><small>{session.date} · 只改当天</small><b>编辑动作与组次</b></div><button onClick={restore}>恢复系统</button></header><p className="editor-note">“3×12”表示 3 组、每组 12 次；“12×3”表示 12 组、每组 3 次。后者训练量较高，不作为普通默认值，但可以手动填写。</p><div className="session-editor-list">{draft.map((exercise)=><article key={exercise.id}><div className="editor-exercise-head"><ExerciseThumb exercise={exercise}/><div><b>{exercise.name}</b><small>{exercise.target}</small></div><button onClick={()=>setDraft((items)=>items.filter((item)=>item.id!==exercise.id))}>删除</button></div><div className="scheme-presets"><button onClick={()=>preset(exercise.id,5,5)}>5×5</button><button onClick={()=>preset(exercise.id,4,8)}>4×8</button><button onClick={()=>preset(exercise.id,3,12)}>3×12</button></div><div className="editor-fields"><label>角色<select value={exercise.role} onChange={(event)=>update(exercise.id,{role:event.target.value as ExercisePrescription['role']})}><option value="T1">T1 主项</option><option value="T2">T2 次级</option><option value="T3">T3 辅助</option><option value="conditioning">体能</option></select></label><label>组数<input type="number" inputMode="numeric" min="1" max="12" value={exercise.sets} onChange={(event)=>update(exercise.id,{sets:Math.min(12,Math.max(1,Number(event.target.value)||1))})}/></label><label>每组次数<input value={exercise.reps} onChange={(event)=>update(exercise.id,{reps:event.target.value})} placeholder="例如 5 次或 8–12 次"/></label><label>重量 kg<input type="number" inputMode="decimal" min="0" step="0.5" value={exercise.suggestedWeightKg??''} onChange={(event)=>update(exercise.id,{suggestedWeightKg:event.target.value===''?undefined:Math.max(0,Number(event.target.value)||0)})}/></label><label>目标 RPE<input type="number" inputMode="decimal" min="1" max="10" step="0.5" value={exercise.targetRpe} onChange={(event)=>update(exercise.id,{targetRpe:Math.min(10,Math.max(1,Number(event.target.value)||7))})}/></label><label>休息秒<input type="number" inputMode="numeric" min="15" max="600" step="15" value={exercise.restSeconds} onChange={(event)=>update(exercise.id,{restSeconds:Math.min(600,Math.max(15,Number(event.target.value)||60))})}/></label></div></article>)}</div><div className="add-exercise-row"><select value={addId} onChange={(event)=>setAddId(event.target.value)}><option value="">选择临时增加的动作</option>{available.map((exercise)=><option key={exercise.id} value={exercise.id}>{exercise.name} · {exercise.target}</option>)}</select><button onClick={add} disabled={!addId}>添加</button></div><button className="primary-action action-button" disabled={draft.length===0} onClick={()=>save({...session,exercises:draft})}>保存当天安排</button></section></div>;
 }
 
 function WorkoutSheet({session,logs,note,update,setNote,close,finish,showDetail}:{session:TrainingSession;logs:ExerciseLog[];note:string;update:(id:string,patch:Partial<ExerciseLog>)=>void;setNote:(value:string)=>void;close:()=>void;finish:()=>void;showDetail:(value:ExerciseDefinition)=>void}) {

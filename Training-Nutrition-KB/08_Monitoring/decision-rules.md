@@ -4,7 +4,7 @@ title: 训练反馈与调整决策
 evidence_level: A-C
 applicable_population: healthy_adults
 sources: autoreg-2021, deload-2022, acsm-2026
-rule_ids: keep-plan, session-reduce, exercise-reset, deload-proposal, structural-change-next-week
+rule_ids: keep-plan, session-reduce, exercise-reset, deload-proposal, structural-change-next-week, daily-session-manual-override
 ---
 
 # 训练反馈与调整决策
@@ -31,7 +31,8 @@ rule_ids: keep-plan, session-reduce, exercise-reset, deload-proposal, structural
 
 什么时候改分化：连续两周完成率低、训练日不可执行或目标发生改变；结构变化从下一个周一生效。
 
+什么时候只改当天：临时使用其他计划、器械被占用或当天需要替换动作时，可修改动作、顺序、组数、次数、重量、RPE 与休息。该覆盖只作用于指定日期；已完成日志不改写，用户可恢复系统模板。
+
 证据等级：A-C。
 
 仍有哪些不确定性：主观记录质量决定建议质量，因此所有调整必须先预览并由用户应用。
-

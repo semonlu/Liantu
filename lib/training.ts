@@ -44,6 +44,22 @@ export type ExercisePrescription = ExerciseDefinition & {
   weightBasis?: string;
 };
 
+export type SessionExerciseOverride = {
+  exerciseId: string;
+  role: ExerciseRole;
+  sets: number;
+  reps: string;
+  restSeconds: number;
+  targetRpe: number;
+  suggestedWeightKg?: number;
+};
+
+export type DailySessionOverride = {
+  date: string;
+  exercises: SessionExerciseOverride[];
+  updatedAt: number;
+};
+
 export type TrainingSession = {
   id: string;
   date: string;
@@ -374,7 +390,45 @@ export function estimateCalories(met:number,weightKg:number,minutes:number) {
 }
 
 export function splitLabel(days:TrainingDayCount) {
-  return ({2:'全身 A/B',3:'推/拉/腿三分化',4:'上肢/下肢四分化',5:'上下肢四练 + 功能体能',6:'推/拉/腿 × 2'})[days];
+  return ({2:'每周二练 · 全身 A/B',3:'每周三练 · 推/拉/腿',4:'上下肢二分化 × 2',5:'上下肢四练 + 功能体能',6:'推/拉/腿 × 2'})[days];
+}
+
+export function splitSchedule(days:TrainingDayCount) {
+  return splitRecipes[days].map((item)=>({
+    title:item.title,
+    focus:item.focus,
+    exercises:item.items.map(({id,role})=>({id,role,name:catalog[id].name})),
+  }));
+}
+
+export function createCustomExercise(exerciseId:string):ExercisePrescription {
+  const exercise=catalog[exerciseId];
+  if(!exercise)throw new Error(`未知动作：${exerciseId}`);
+  return {...exercise,role:'T3',sets:3,reps:'8–12 次',restSeconds:60,targetRpe:8,
+    progressionNote:'本日临时加入：先在目标次数范围内完成，再根据 RPE 调整重量。',
+    weightBasis:'用户临时加入；本次重量由首组 RPE 6–7 校准'};
+}
+
+export function applySessionOverride(session:TrainingSession,override?:DailySessionOverride):TrainingSession {
+  if(!override||override.date!==session.date)return session;
+  const exercises=override.exercises.flatMap((item)=>{
+    const definition=catalog[item.exerciseId];
+    if(!definition)return [];
+    const original=session.exercises.find((exercise)=>exercise.id===item.exerciseId);
+    return [{
+      ...definition,
+      role:item.role,
+      sets:Math.min(12,Math.max(1,Math.round(item.sets))),
+      reps:item.reps.trim()||'8–12 次',
+      restSeconds:Math.min(600,Math.max(15,Math.round(item.restSeconds))),
+      targetRpe:Math.min(10,Math.max(1,item.targetRpe)),
+      ...(item.suggestedWeightKg!==undefined?{suggestedWeightKg:Math.max(0,item.suggestedWeightKg)}:{}),
+      progressionNote:original?.progressionNote??'本日临时加入：先在目标次数范围内完成，再根据 RPE 调整重量。',
+      weightBasis:item.suggestedWeightKg!==undefined?'用户为本日手动设置重量':original?.weightBasis??'本次重量由首组 RPE 6–7 校准',
+    }];
+  });
+  return {...session,title:session.recovery?'自定义训练':session.title,recovery:false,exercises,focus:exercises.map((item)=>item.name).join(' · '),
+    adjustment:'本日动作和组次由你手动修改；只覆盖这一天，不改变周期模板或其他日期。'};
 }
 
 export function buildSession(profile:TrainingProfile,dateValue:Date,logs:WorkoutLog[]):TrainingSession {
