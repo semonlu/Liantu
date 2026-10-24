@@ -42,4 +42,6 @@ npm run android:release
 
 ## 知识与许可证
 
+练途应用源码采用 [GNU AGPL-3.0](LICENSE) 开源许可证；第三方数据、图片与资料保留各自许可证，详见下方来源与许可证报告。
+
 来源分级、下载状态和用途见 `Training-Nutrition-KB/SOURCE_MANIFEST.md`；动作资源和知识库许可证见 `Training-Nutrition-KB/LICENSE_REPORT.md`。AGPL 项目只用于研究架构与行为，没有复制其源码。
