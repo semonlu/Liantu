@@ -1,6 +1,6 @@
 {
   "name": "sites-project",
-  "version": "0.1.0",
+  "version": "1.1.8",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -9,7 +9,9 @@
     "prebuild": "node scripts/build-knowledge-index.mjs",
     "knowledge:build": "node scripts/build-knowledge-index.mjs",
     "model:validate": "node --experimental-strip-types scripts/validate-model-providers.ts",
+    "oauth:validate": "node --experimental-strip-types scripts/validate-chatgpt-oauth.ts",
     "media:validate": "node --experimental-strip-types scripts/validate-exercise-media.ts",
+    "names:validate": "node --experimental-strip-types scripts/validate-exercise-names.ts",
     "mobile:build": "node scripts/build-knowledge-index.mjs && vite build --config vite.mobile.config.ts",
     "android:sync": "npm run mobile:build && cap sync android",
     "android:debug": "npm run android:sync && android\\gradlew.bat assembleDebug",
@@ -17,10 +19,11 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
+    "lint": "eslint app lib scripts capacitor.config.ts next.config.ts vite.config.ts vite.mobile.config.ts"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",
+    "@capacitor/browser": "^6.0.6",
     "@capacitor/camera": "^6.1.2",
     "@capacitor/core": "^6.2.1",
     "next": "16.2.6",

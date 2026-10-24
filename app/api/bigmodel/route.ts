@@ -21,9 +21,10 @@ const SYSTEM_PROMPT =
 
 const BODY_REPORT_PROMPT='读取八电极生物电阻抗体成分报告截图。只抄录明确可见的数值，不推算。只返回 JSON：date,weightKg,bodyFatPercent,muscleMassKg,visceralFat,bmr,confidence,note。缺失字段填0。';
 const CHECKUP_REPORT_PROMPT='读取常规体检报告截图。只摘录明确可见的检查日期、指标、结果、单位和参考范围，不诊断、不推算。只返回 JSON：date,weightKg,bodyFatPercent,muscleMassKg,visceralFat,bmr,confidence,visibleFindings,note。没有相应体成分字段填0。';
-const COACH_PROMPT='你是训练记录解读助手。根据目标、今日计划、最近训练完成度与 RPE、当天饮食记录和体成分趋势，用中文给出3-5句简洁、可执行的今日建议。区分事实、估算与建议；不虚构缺失数据。';
-const CHAT_PROMPT='你是练途 AI 教练。用自然中文回答用户，并且只返回 JSON：reply(string),action(null或对象)。action 只能是以下一种：{type:"profile",weightKg?:number,sleepHours?:number} 用于记录用户明确说出的体重或平均睡眠；{type:"energy",kcal:number,note:string} 用于记录用户明确说出的额外运动消耗或纠正值，kcal 可正可负；{type:"plan",goal?:fat_loss|strength|hypertrophy|endurance|circuit|functional,daysPerWeek?:2|3|4|5|6,sessionMinutes?:20-120,rationale:string} 用于提出计划调整。不得从模糊对话推测数值；没有明确可执行内容时 action 为 null。任何 action 都只是待用户确认，不能声称已经保存或应用。';
-const PLAN_PROMPT='你是训练计划解释与提案助手，不能绕过确定性规则引擎。只返回 JSON：goal(fat_loss|strength|hypertrophy|endurance|circuit|functional),daysPerWeek(2|3|4|5|6),sessionMinutes(20-120),changeType(dose|structure),cycle,deload,rationale(2-4条),nutritionFocus。当前产品结构为2天全身AB、3天器械优先推拉腿、4天上下肢、5天上下肢加功能体能、6天PPL两轮；分化是产品可执行性选择，不得声称某种分化具有绝对优势。新手不固定整周减载；中级只有累计疲劳信号满足时才提出主动减载。单餐异常不得修改训练。';
+const COACH_PROMPT='你是训练记录解读助手。根据目标、今日计划、最近训练完成度与 RPE、当天饮食记录和体成分趋势，用中文给出3-5句简洁、可执行的今日建议。recentLogs.exercises 中存在 setLogs 时，必须逐组读取所有 completed=true 的重量、次数和 RPE，比较组间下降与疲劳，不能只按动作级汇总字段或最后一组判断。区分事实、估算与建议；不虚构缺失数据。';
+const CHAT_PROMPT='你是练途 AI 教练。用自然中文回答用户，并且只返回 JSON：reply(string),action(null或对象)。action 只能是以下一种：{type:"profile",weightKg?:number,sleepHours?:number}；{type:"energy",kcal:number,note:string}；{type:"nutrition",mealName:string,grams?:number,calories:number,protein:number,carbs:number,fat:number} 用于记录用户明确描述的当天饮食；{type:"workout",date:"YYYY-MM-DD",title:string,durationMinutes?:number,caloriesBurned?:number,averageRpe?:number,exercises:[{exerciseId?:string,name:string,sets:number,reps:string,weightKg?:number,rpe?:number}],note:string} 用于新增或替换用户指定日期的已完成训练。用户要求修改已有日期时，必须结合 context.requestedDateLogs 返回修改后的完整动作清单，确认后客户端会替换旧记录并把该日历卡标记金色，不能只返回增量；不能把计划或建议当成已完成。{type:"plan",goal?:fat_loss|strength|hypertrophy|endurance|circuit|functional,daysPerWeek?:2|3|4|5|6,sessionMinutes?:20-120,rationale:string}。优先使用 context.requestedDateHint；context.currentDate 是设备当前日期，用户说今天、昨天、前天或月日时必须换算成明确 YYYY-MM-DD，没说日期时 workout.date 使用 currentDate，不得把未来日期写成已完成。严格读取 context.permissions。分析 context.recentLogs 或 requestedDateLogs 时，若动作含 setLogs，必须读取所有 completed=true 的逐组重量、次数、RPE，不能只看动作级汇总或最后一组。没有明确可执行内容时 action 为 null。任何 action 都只是待用户确认，不能声称已经保存或应用。';
+const CHAT_SUMMARY_PROMPT='把旧的练途教练对话压缩成中文长期摘要。保留用户目标、训练水平、器械条件、明确偏好、伤痛限制、已确认的训练或饮食事实、重要计划决策和仍待解决的问题；删除寒暄、重复内容和已经过期的临时措辞。不得把建议写成已完成事实，不得补充原文没有的数据。直接返回紧凑纯文本，最多1200个汉字。';
+const PLAN_PROMPT='你是训练计划解释与提案助手，不能绕过确定性规则引擎。recentLogs.exercises 中存在 setLogs 时，必须读取每个 completed=true 的逐组重量、次数与 RPE，不能只读取动作级 weightKg/reps/rpe 汇总字段。只返回 JSON：goal(fat_loss|strength|hypertrophy|endurance|circuit|functional),daysPerWeek(2|3|4|5|6),sessionMinutes(20-120),changeType(dose|structure),cycle,deload,rationale(2-4条),nutritionFocus。当前产品结构为2天全身AB、3天器械优先推拉腿、4天上下肢、5天上下肢加功能体能、6天PPL两轮；分化是产品可执行性选择，不得声称某种分化具有绝对优势。新手不固定整周减载；中级只有累计疲劳信号满足时才提出主动减载。单餐异常不得修改训练。';
 
 const protocols:ProviderProtocol[]=['openai_chat','openai_responses','anthropic_messages','gemini_generate','ollama_chat'];
 
@@ -34,11 +35,17 @@ function connectionFrom(body:Record<string,unknown>):ModelConnection{
 }
 
 const serverHttp=async(url:string,method:'GET'|'POST',headers:Record<string,string>,data?:Record<string,unknown>)=>{
-  const response=await fetch(url,{method,headers,body:data?JSON.stringify(data):undefined});
-  const text=await response.text();
-  let payload:unknown=text;
-  try{payload=JSON.parse(text);}catch{}
-  return {status:response.status,data:payload};
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),90_000);
+  try{
+    const response=await fetch(url,{method,headers,body:data?JSON.stringify(data):undefined,signal:controller.signal});
+    const text=await response.text();
+    let payload:unknown=text;
+    try{payload=JSON.parse(text);}catch{}
+    return {status:response.status,data:payload};
+  }catch(error){
+    if(controller.signal.aborted)throw new Error('模型请求超过 90 秒，已停止等待。请重试或换用响应更快的模型');
+    throw error;
+  }finally{clearTimeout(timer);}
 };
 
 export async function POST(request:Request){
@@ -52,21 +59,21 @@ export async function POST(request:Request){
       return Response.json({models},{headers:{'Cache-Control':'no-store'}});
     }
     if(!connection.model.trim())throw new Error('请先填写或选择模型');
-    const context={profile:body.profile,currentSession:body.currentSession??body.session,recentLogs:body.recentLogs,nutrition:body.nutrition,bodyMetrics:body.bodyMetrics,energyAdjustments:body.energyAdjustments,messages:body.messages};
+    const context={currentDate:body.currentDate,selectedPlanDate:body.selectedPlanDate,requestedDateHint:body.requestedDateHint,requestedDateLogs:body.requestedDateLogs,conversationSummary:body.conversationSummary,compressedCount:body.compressedCount,messages:body.messages,profile:body.profile,currentSession:body.currentSession??body.session,selectedSession:body.selectedSession,recentLogs:body.recentLogs,nutrition:body.nutrition,bodyMetrics:body.bodyMetrics,energyAdjustments:body.energyAdjustments,permissions:body.permissions};
     if(action==='textProbe'){
-      const content=await requestProviderModel({connection,text:'这是练途的连接测试。请只回复：练途连接成功',temperature:0,maxTokens:120},serverHttp);
+      const content=await requestProviderModel({connection,text:'这是练途的连接测试。请只回复：练途连接成功',temperature:0,maxTokens:800},serverHttp);
+      return Response.json({content},{headers:{'Cache-Control':'no-store'}});
+    }
+    if(action==='chatSummary'){
+      const content=await requestProviderModel({connection,system:CHAT_SUMMARY_PROMPT,text:`已有摘要与新增旧消息：${JSON.stringify({previousSummary:body.previousSummary,messages:body.messages}).slice(0,24000)}`,temperature:0,maxTokens:1400},serverHttp);
       return Response.json({content},{headers:{'Cache-Control':'no-store'}});
     }
     if(action==='chat'){
-      const content=await requestProviderModel({connection,system:CHAT_PROMPT,text:`用户资料和最近对话：${JSON.stringify(context).slice(0,24000)}`,temperature:.2,maxTokens:1200,json:true},serverHttp);
+      const content=await requestProviderModel({connection,system:CHAT_PROMPT,text:`用户资料和最近对话：${JSON.stringify(context).slice(0,24000)}`,temperature:.2,maxTokens:3000,json:true},serverHttp);
       return Response.json({content},{headers:{'Cache-Control':'no-store'}});
     }
     if(action==='coach'||action==='plan'){
-      const content=await requestProviderModel({connection,system:action==='plan'?PLAN_PROMPT:COACH_PROMPT,text:`以下是用户数据：${JSON.stringify(context).slice(0,24000)}`,temperature:.2,maxTokens:action==='plan'?1600:600,json:action==='plan'},serverHttp);
-      if(action==='plan'){
-        const parsed=parseModelJson(content);
-        if(!['fat_loss','strength','hypertrophy','endurance','circuit','functional'].includes(String(parsed.goal))||![2,3,4,5,6].includes(Number(parsed.daysPerWeek)))throw new Error('模型返回的计划参数超出规则引擎允许范围');
-      }
+      const content=await requestProviderModel({connection,system:action==='plan'?PLAN_PROMPT:COACH_PROMPT,text:`以下是用户数据：${JSON.stringify(context).slice(0,24000)}`,temperature:.2,maxTokens:action==='plan'?3200:1200,json:action==='plan'},serverHttp);
       return Response.json({content},{headers:{'Cache-Control':'no-store'}});
     }
     const imageData=String(body.imageData??'');

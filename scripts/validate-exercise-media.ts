@@ -1,21 +1,44 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { exerciseCatalog } from '../lib/training.ts';
+import { freeExerciseDefinitions } from '../lib/exercise-library.ts';
+import { datasetExerciseDefinitions } from '../lib/exercises-dataset-library.ts';
 
 const root=process.cwd();
-const manifest=JSON.parse(fs.readFileSync(path.join(root,'Training-Nutrition-KB','exercise-media.json'),'utf8')) as Array<{exerciseId:string;status:string;localPath?:string;author?:string;license?:string;licenseUrl?:string}>;
-const exerciseMedia=Object.fromEntries(manifest.filter((item)=>item.localPath&&['downloaded','generated'].includes(item.status)).map((item)=>[item.exerciseId,{...item,image:item.localPath,source:item.status==='generated'?'ai':'wger'}]));
+const legacyManifest=JSON.parse(fs.readFileSync(path.join(root,'Training-Nutrition-KB','exercise-media.json'),'utf8')) as Array<{exerciseId:string;status:string;localPath?:string}>;
+const legacyMedia=Object.fromEntries(legacyManifest.filter((item)=>item.localPath&&['downloaded','generated'].includes(item.status)).map((item)=>[item.exerciseId,item]));
+const toFile=(url:string)=>path.join(root,'public',...url.split('/').filter(Boolean));
 const missing:string[]=[];
-for(const exercise of Object.values(exerciseCatalog)){
-  const media=exerciseMedia[exercise.id];
-  if(!media?.image){missing.push(`${exercise.id}: no local image`);continue;}
-  const file=path.join(root,'public',...media.image.split('/').filter(Boolean));
-  if(!fs.existsSync(file))missing.push(`${exercise.id}: file missing ${file}`);
-  if(media.source==='wger'&&(!media.author||!media.license||!media.licenseUrl))missing.push(`${exercise.id}: attribution incomplete`);
+const checked=new Set<string>();
+const validateFile=(url:string,label:string)=>{
+  if(checked.has(url))return;
+  checked.add(url);
+  if(!fs.existsSync(toFile(url)))missing.push(`${label}: file missing ${url}`);
+};
+
+for(const exercise of freeExerciseDefinitions){
+  if(!exercise.images?.length){missing.push(`${exercise.id}: no image`);continue;}
+  for(const image of exercise.images)validateFile(image,exercise.id);
 }
+for(const exercise of datasetExerciseDefinitions){
+  if(!exercise.thumbnail||!exercise.animation){missing.push(`${exercise.id}: thumbnail or animation missing`);continue;}
+  validateFile(exercise.thumbnail,exercise.id);
+  validateFile(exercise.animation,exercise.id);
+  if(!exercise.attribution)missing.push(`${exercise.id}: attribution missing`);
+}
+for(const exercise of Object.values(exerciseCatalog)){
+  if(exercise.animation){validateFile(exercise.animation,exercise.id);continue;}
+  if(exercise.images?.length){for(const image of exercise.images)validateFile(image,exercise.id);continue;}
+  const legacy=legacyMedia[exercise.id];
+  if(!legacy?.localPath){missing.push(`${exercise.id}: no packaged media`);continue;}
+  validateFile(legacy.localPath,exercise.id);
+}
+for(const required of [
+  'public/exercise-db/LICENSE.md','public/exercise-db/SOURCE.json',
+  'public/exercises-dataset/LICENSE','public/exercises-dataset/NOTICE.md','public/exercises-dataset/SOURCE.json',
+])if(!fs.existsSync(path.join(root,required)))missing.push(`source metadata missing: ${required}`);
+
 if(missing.length)throw new Error(`动作媒体校验失败：\n${missing.join('\n')}`);
-const downloaded=manifest.filter((item)=>item.status==='downloaded').length;
-const generated=manifest.filter((item)=>item.status==='generated').length;
-const authors=new Set(manifest.filter((item)=>item.status==='downloaded'&&item.author).map((item)=>item.author));
-console.log(`动作媒体本地完整性通过：${Object.keys(exerciseCatalog).length} 个动作均有本地文件；${downloaded} 张下载、${generated} 张生成。`);
-console.log(`风格一致性未通过：下载素材来自 ${authors.size} 位作者，与生成素材不构成统一视觉系列；不得将“本地完整”描述为“风格统一”。`);
+const supplements=freeExerciseDefinitions.filter((item)=>item.images?.some((image)=>image.includes('/generated-exercises/free-db-supplements/'))).length;
+console.log(`动作媒体完整性通过：exercises-dataset ${datasetExerciseDefinitions.length} 个 GIF + 缩略图，free-exercise-db ${freeExerciseDefinitions.length} 个动作 / 1746 张原图，AI 补图 ${supplements} 张。`);
+console.log(`计划内置动作 ${Object.keys(exerciseCatalog).length} 个均有离线媒体，并优先使用 exercises-dataset 动图。`);

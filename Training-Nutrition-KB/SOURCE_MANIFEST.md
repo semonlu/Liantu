@@ -28,6 +28,8 @@
 
 | ID | 来源 | 用途 | 许可证约束 |
 | --- | --- | --- | --- |
+| `free-exercise-db` | yuhonas/free-exercise-db | 876 个动作、器械/肌群/难度字段和 1746 张双姿势原图 | Unlicense；整库来源与固定提交已保存 |
+| `exercises-dataset` | hasaneyldrm/exercises-dataset | 1324 个动作、中文步骤、180×180 缩略图与 GIF | 代码/数据/说明 MIT；媒体保留 Gym visual attribution |
 | `liftosaur` | Liftosaur / Liftoscript | 自动加重、失败回退、计划快照和组次变式的行为参考 | AGPL-3.0；不复制源码 |
 | `wger` | wger | 动作、器械、肌群和署名模型 | 代码 AGPL；媒体按条目 CC 许可 |
 | `workout-cool` | workout.cool | 计划与训练记录的数据结构参考 | MIT；本版本不复制实现 |

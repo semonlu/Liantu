@@ -1,3 +1,6 @@
+import { curatedFreeExerciseIds, freeExerciseRecordBySourceId } from './exercise-library.ts';
+import { curatedDatasetExerciseIds, datasetExerciseDefinitionById } from './exercises-dataset-library.ts';
+
 export type TrainingGoal = 'fat_loss' | 'strength' | 'hypertrophy' | 'endurance' | 'circuit' | 'functional';
 export type TrainingLevel = 'beginner' | 'intermediate';
 export type Equipment = 'bodyweight' | 'dumbbell' | 'gym' | 'mixed';
@@ -15,6 +18,10 @@ export type TrainingProfile = {
   weightKg: number;
   mainLift1RM: MainLiftOneRm;
   startDate: string;
+  sex?: 'male' | 'female';
+  age?: number;
+  heightCm?: number;
+  dailyActivity?: 'sedentary' | 'light' | 'active';
   sleepHours?: number;
   readiness?: 1 | 2 | 3 | 4 | 5;
   painAreas?: string[];
@@ -30,6 +37,16 @@ export type ExerciseDefinition = {
   wgerId?: number;
   cues: string[];
   easier: string;
+  images?: string[];
+  thumbnail?: string;
+  animation?: string;
+  attribution?: string;
+  source?: 'curated' | 'free-exercise-db' | 'exercises-dataset';
+  sourceId?: string;
+  level?: string;
+  category?: string;
+  primaryMuscles?: string[];
+  secondaryMuscles?: string[];
 };
 
 export type ExercisePrescription = ExerciseDefinition & {
@@ -46,6 +63,7 @@ export type ExercisePrescription = ExerciseDefinition & {
 
 export type SessionExerciseOverride = {
   exerciseId: string;
+  definition?: ExerciseDefinition;
   role: ExerciseRole;
   sets: number;
   reps: string;
@@ -85,6 +103,15 @@ export type ExerciseLog = {
   weightKg: number;
   rpe: number;
   plannedSets?: number;
+  setLogs?: ExerciseSetLog[];
+};
+
+export type ExerciseSetLog = {
+  setNumber: number;
+  completed: boolean;
+  weightKg: number;
+  reps: string;
+  rpe: number;
 };
 
 export type WorkoutLog = {
@@ -149,6 +176,7 @@ export const defaultProfile: TrainingProfile = {
   goal:'strength', level:'beginner', equipment:'gym', daysPerWeek:3,
   sessionMinutes:60, weightKg:65, startDate:new Date().toISOString().slice(0,10),
   mainLift1RM:{bench:0,squat:0,deadlift:0,overheadPress:0,legPress:0},
+  dailyActivity:'light',
   sleepHours:7.5, readiness:3, painAreas:[], cardioActivities:[],
 };
 
@@ -189,7 +217,7 @@ export const exerciseCatalog: Record<string,ExerciseDefinition> = {
     cues:['双手位于肩部下方','膝盖交替向前，骨盆保持稳定','先保持动作质量，再提高速度'],easier:'慢速交替提膝' },
   bridge:{ id:'bridge',name:'臀桥',englishName:'Glute Bridge',target:'臀腿 · 髋伸',equipment:['bodyweight','dumbbell','gym'],wgerId:265,
     cues:['脚跟靠近臀部，脚掌压稳','收紧臀部抬髋，不用腰部顶起','顶端保持肋骨下沉'],easier:'缩小抬起幅度' },
-  bird_dog:{ id:'bird_dog',name:'鸟狗式',englishName:'Bird Dog',target:'核心 · 对侧稳定',equipment:['bodyweight','dumbbell','gym'],wgerId:1572,
+  bird_dog:{ id:'bird_dog',name:'鸟狗式',englishName:'Bird Dog',target:'核心 · 对侧稳定',equipment:['bodyweight','dumbbell','gym'],images:['/generated-exercises/bird-dog-gymvisual-style.png'],source:'curated',
     cues:['四点跪姿，脊柱保持中立','对侧手脚向远处延伸','骨盆不旋转，缓慢返回'],easier:'只伸手或只伸腿' },
   rdl:{ id:'rdl',name:'哑铃罗马尼亚硬拉',englishName:'Dumbbell Romanian Deadlift',target:'臀腿 · 髋铰链',equipment:['dumbbell','gym'],wgerId:1652,
     cues:['膝盖微屈，髋部向后移动','重量贴近腿部，背部保持稳定','感到大腿后侧拉伸后夹臀站起'],easier:'徒手髋铰链练习' },
@@ -204,6 +232,15 @@ export const exerciseCatalog: Record<string,ExerciseDefinition> = {
   walk:{ id:'walk',name:'快走或轻松慢跑',englishName:'Brisk Walk or Easy Run',target:'心肺 · 有氧基础',equipment:['bodyweight','dumbbell','gym'],
     cues:['用可持续、能说短句的速度','身体放松，步频自然','结束前逐步降低速度'],easier:'舒适步速散步' },
 };
+
+for(const [exerciseId,sourceId] of Object.entries(curatedFreeExerciseIds)){
+  const exercise=exerciseCatalog[exerciseId],source=freeExerciseRecordBySourceId[sourceId];
+  if(exercise&&source?.images.length)exerciseCatalog[exerciseId]={...exercise,images:source.images,source:'free-exercise-db',sourceId};
+}
+for(const [exerciseId,sourceId] of Object.entries(curatedDatasetExerciseIds)){
+  const exercise=exerciseCatalog[exerciseId],source=datasetExerciseDefinitionById[`logpress:${sourceId}`];
+  if(exercise&&source)exerciseCatalog[exerciseId]={...exercise,thumbnail:source.thumbnail,animation:source.animation,attribution:source.attribution,source:'exercises-dataset',sourceId};
+}
 
 const catalog = exerciseCatalog;
 
@@ -318,8 +355,8 @@ function doseFor(goal:TrainingGoal,role:ExerciseRole,phase:TrainingSession['phas
 function progressionFor(exerciseId:string,role:ExerciseRole,logs:WorkoutLog[]) {
   const recent=[...logs].sort((a,b)=>b.completedAt-a.completedAt)
     .flatMap((log)=>log.exercises.filter((item)=>item.exerciseId===exerciseId)).slice(0,2);
-  if(recent.length===2&&recent.every((item)=>item.rpe>=9||item.completedSets<2))return '连续两次未达最低目标：下次降重 5%–10%，再逐步爬升。';
-  if(recent.length===2&&recent.every((item)=>item.rpe<=8&&item.completedSets>=2))return role==='T1'?'完成目标后加重 2%–5%；若次数下降则保持重量。':'先做到次数区间上限，再加最小配重。';
+  if(recent.length===2&&recent.every((item)=>exerciseLogRpe(item)>=9||item.completedSets<2))return '连续两次未达最低目标：下次降重 5%–10%，再逐步爬升。';
+  if(recent.length===2&&recent.every((item)=>exerciseLogRpe(item)<=8&&item.completedSets>=2))return role==='T1'?'完成目标后加重 2%–5%；若次数下降则保持重量。':'先做到次数区间上限，再加最小配重。';
   return role==='T1'?'保留约 2 次余力；完成全部目标组次后再加重。':'使用双重进阶：先加次数，再加最小配重。';
 }
 
@@ -348,21 +385,22 @@ function percentFor(goal:TrainingGoal,role:ExerciseRole,phase:TrainingSession['p
 function weightPrescription(profile:TrainingProfile,exerciseId:string,role:ExerciseRole,phase:TrainingSession['phase'],sets:number,logs:WorkoutLog[]) {
   if(['conditioning','recovery'].includes(role))return {};
   const recent=[...logs].sort((a,b)=>b.completedAt-a.completedAt)
-    .flatMap((log)=>log.exercises.filter((item)=>item.exerciseId===exerciseId&&item.weightKg>0)).slice(0,2);
+    .flatMap((log)=>log.exercises.filter((item)=>item.exerciseId===exerciseId&&exerciseLogWeight(item)>0)).slice(0,2);
   const last=recent[0];
-  const failed=(item:ExerciseLog)=>item.rpe>=9.5||item.completedSets<Math.max(1,item.plannedSets??sets);
-  const completed=(item:ExerciseLog)=>item.rpe<=8&&item.completedSets>=Math.max(1,item.plannedSets??sets);
+  const failed=(item:ExerciseLog)=>exerciseLogRpe(item)>=9.5||item.completedSets<Math.max(1,item.plannedSets??sets);
+  const completed=(item:ExerciseLog)=>exerciseLogRpe(item)<=8&&item.completedSets>=Math.max(1,item.plannedSets??sets);
   if(recent.length===2&&recent.every(failed)){
-    const suggestedWeightKg=roundLoad(last.weightKg*.925,exerciseId);
-    return {suggestedWeightKg,weightBasis:`连续两次未完成，较上次 ${last.weightKg} kg 回退约 7.5%`};
+    const lastWeight=exerciseLogWeight(last),suggestedWeightKg=roundLoad(lastWeight*.925,exerciseId);
+    return {suggestedWeightKg,weightBasis:`连续两次未完成，较上次最高工作组 ${lastWeight} kg 回退约 7.5%`};
   }
   if(recent.length===2&&recent.every(completed)){
     const increase=role==='T1'?1.025:1.02;
-    const suggestedWeightKg=roundLoad(last.weightKg*increase,exerciseId);
-    return {suggestedWeightKg,weightBasis:`连续两次完成且 RPE≤8，由 ${last.weightKg} kg 小幅加重`};
+    const lastWeight=exerciseLogWeight(last),suggestedWeightKg=roundLoad(lastWeight*increase,exerciseId);
+    return {suggestedWeightKg,weightBasis:`连续两次完成且逐组 RPE 合格，由最高工作组 ${lastWeight} kg 小幅加重`};
   }
   if(last){
-    return {suggestedWeightKg:roundLoad(last.weightKg,exerciseId),weightBasis:failed(last)?`上次未完成，先保持 ${last.weightKg} kg 复测`:`沿用上次完成重量 ${last.weightKg} kg`};
+    const lastWeight=exerciseLogWeight(last);
+    return {suggestedWeightKg:roundLoad(lastWeight,exerciseId),weightBasis:failed(last)?`上次未完成，先保持最高工作组 ${lastWeight} kg 复测`:`沿用上次最高工作组 ${lastWeight} kg`};
   }
   const basis=oneRmBasis[exerciseId];
   const oneRm=basis?(profile.mainLift1RM?.[basis.key]??0):0;
@@ -370,6 +408,20 @@ function weightPrescription(profile:TrainingProfile,exerciseId:string,role:Exerc
   const percent=percentFor(profile.goal,role,phase);
   const suggestedWeightKg=roundLoad(oneRm*basis.factor*percent,exerciseId);
   return {suggestedWeightKg,loadPercent1RM:Math.round(percent*basis.factor*100),weightBasis:`按${basis.label}与${phase}阶段计算`};
+}
+
+function completedSetLogs(item:ExerciseLog) {
+  return item.setLogs?.filter((set)=>set.completed)??[];
+}
+
+function exerciseLogWeight(item:ExerciseLog) {
+  const sets=completedSetLogs(item);
+  return sets.length?Math.max(...sets.map((set)=>set.weightKg)):item.weightKg;
+}
+
+function exerciseLogRpe(item:ExerciseLog) {
+  const sets=completedSetLogs(item);
+  return sets.length?Math.max(...sets.map((set)=>set.rpe)):item.rpe;
 }
 
 function recoverySession(profile:TrainingProfile,date:string,week:number):TrainingSession {
@@ -401,9 +453,9 @@ export function splitSchedule(days:TrainingDayCount) {
   }));
 }
 
-export function createCustomExercise(exerciseId:string):ExercisePrescription {
-  const exercise=catalog[exerciseId];
-  if(!exercise)throw new Error(`未知动作：${exerciseId}`);
+export function createCustomExercise(value:string|ExerciseDefinition):ExercisePrescription {
+  const exercise=typeof value==='string'?catalog[value]:value;
+  if(!exercise)throw new Error(`未知动作：${value}`);
   return {...exercise,role:'T3',sets:3,reps:'8–12 次',restSeconds:60,targetRpe:8,
     progressionNote:'本日临时加入：先在目标次数范围内完成，再根据 RPE 调整重量。',
     weightBasis:'用户临时加入；本次重量由首组 RPE 6–7 校准'};
@@ -412,7 +464,7 @@ export function createCustomExercise(exerciseId:string):ExercisePrescription {
 export function applySessionOverride(session:TrainingSession,override?:DailySessionOverride):TrainingSession {
   if(!override||override.date!==session.date)return session;
   const exercises=override.exercises.flatMap((item)=>{
-    const definition=catalog[item.exerciseId];
+    const definition=item.definition??catalog[item.exerciseId];
     if(!definition)return [];
     const original=session.exercises.find((exercise)=>exercise.id===item.exerciseId);
     return [{

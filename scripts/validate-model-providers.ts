@@ -51,4 +51,11 @@ assert.equal(calls.at(-1)?.body?.stream,false);
 responses.push({models:[{model:'gemma3'},{name:'qwen3'}]});
 assert.deepEqual(await listProviderModels({...base,protocol:'ollama_chat',endpoint:'http://127.0.0.1:11434',apiKey:''},http),['gemma3','qwen3']);
 
+const zhipu={...base,providerId:'zhipu',endpoint:'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions'};
+responses.push({choices:[{message:{content:''},finish_reason:'length'}]});
+responses.push({choices:[{message:{content:'zhipu-retry-ok'},finish_reason:'stop'}]});
+assert.equal(await requestProviderModel({connection:zhipu,text:'hello',maxTokens:800,temperature:0},http),'zhipu-retry-ok');
+assert.deepEqual(calls.at(-2)?.body?.thinking,{type:'disabled'});
+assert.equal(calls.at(-1)?.body?.max_tokens,8192);
+
 console.log('model provider validation passed');

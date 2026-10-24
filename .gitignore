@@ -1,6 +1,8 @@
 # dependencies
 /node_modules
 /.pip_deps/
+/.pip_test/
+/.pip-cache/
 /.pnp
 .pnp.*
 .yarn/*
@@ -11,6 +13,8 @@
 
 # testing
 /coverage
+/.test-deps/
+__pycache__/
 
 # next.js
 /.next/
@@ -44,4 +48,6 @@ next-env.d.ts
 /outputs/
 /work/
 /tmp/
+/upstream/
+/artifacts/
 /tsconfig.tsbuildinfo

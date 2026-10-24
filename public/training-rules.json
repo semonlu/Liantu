@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T04:00:52.964Z",
+  "generatedAt": "2026-09-07T15:22:38.894Z",
   "rules": [
     {
       "id": "evidence-source-required",
@@ -479,12 +479,13 @@
       "id": "media-license-per-item",
       "cardId": "open-source-training-engines",
       "condition": "动作媒体打包进离线应用",
-      "target": "requiredLicenseRecordsPerAsset",
+      "target": "requiredOriginAndLicenseRecords",
       "min": 1,
       "max": 1,
       "priority": 100,
       "sourceIds": [
-        "wger"
+        "free-exercise-db",
+        "exercises-dataset"
       ]
     },
     {

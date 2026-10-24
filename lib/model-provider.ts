@@ -22,6 +22,7 @@ export type ProviderPreset={
 export const providerPresets:ProviderPreset[]=[
   {id:'zhipu',name:'智谱',subtitle:'GLM 视觉与文本',protocol:'openai_chat',endpoint:'https://open.bigmodel.cn/api/paas/v4/chat/completions',model:'glm-5v-turbo'},
   {id:'openai',name:'OpenAI',subtitle:'Responses API',protocol:'openai_responses',endpoint:'https://api.openai.com/v1/responses',model:'gpt-5-mini'},
+  {id:'chatgpt',name:'ChatGPT 账号',subtitle:'Plus / Pro · Codex OAuth',protocol:'openai_responses',endpoint:'https://chatgpt.com/backend-api/codex/responses',model:'gpt-5.6-sol',apiKeyOptional:true},
   {id:'anthropic',name:'Anthropic',subtitle:'Claude Messages',protocol:'anthropic_messages',endpoint:'https://api.anthropic.com/v1/messages',model:'claude-sonnet-4-5'},
   {id:'gemini',name:'Google Gemini',subtitle:'GenerateContent',protocol:'gemini_generate',endpoint:'https://generativelanguage.googleapis.com/v1beta',model:'gemini-2.5-flash'},
   {id:'deepseek',name:'DeepSeek',subtitle:'OpenAI 兼容',protocol:'openai_chat',endpoint:'https://api.deepseek.com/chat/completions',model:'deepseek-chat'},
@@ -157,6 +158,21 @@ function httpError(response:HttpResult){
   return new Error(`接口返回 ${response.status}：${String(message).replace(/\s+/g,' ').slice(0,260)}`);
 }
 
+function completionDetail(data:unknown){
+  const root=data&&typeof data==='object'&&'data' in data?(data as {data?:unknown}).data??data:data;
+  const payload=root as {choices?:Array<{finish_reason?:unknown}>;status?:unknown;incomplete_details?:unknown;candidates?:Array<{finishReason?:unknown}>;done_reason?:unknown};
+  return payload?.choices?.[0]?.finish_reason??payload?.candidates?.[0]?.finishReason??payload?.incomplete_details??payload?.done_reason??payload?.status;
+}
+
+function increaseOutputLimit(protocol:ProviderProtocol,body:Record<string,unknown>,current:number){
+  const next=Math.min(16384,Math.max(8192,current*2));
+  if(protocol==='openai_chat'||protocol==='anthropic_messages')body.max_tokens=next;
+  if(protocol==='openai_responses')body.max_output_tokens=next;
+  if(protocol==='gemini_generate')body.generationConfig={...(body.generationConfig as Record<string,unknown>),maxOutputTokens:next};
+  if(protocol==='ollama_chat')body.options={...(body.options as Record<string,unknown>),num_predict:next};
+  return next;
+}
+
 export async function requestProviderModel(request:ModelRequest,http:HttpClient){
   const {connection}=request;
   const endpoint=normalizeEndpoint(connection.protocol,connection.endpoint);
@@ -165,7 +181,8 @@ export async function requestProviderModel(request:ModelRequest,http:HttpClient)
   let url=endpoint;
   let body:Record<string,unknown>;
   if(connection.protocol==='openai_chat'){
-    body={model:connection.model,temperature:request.temperature,max_tokens:request.maxTokens,...(request.json?{response_format:{type:'json_object'}}:{}),messages:[...(request.system?[{role:'system',content:request.system}]:[]),{role:'user',content:image?[{type:'text',text:request.text},{type:'image_url',image_url:{url:request.imageData}}]:request.text}]};
+    const isZhipu=connection.providerId==='zhipu'||/^https:\/\/open\.bigmodel\.cn\//i.test(endpoint);
+    body={model:connection.model,temperature:request.temperature,max_tokens:request.maxTokens,...(isZhipu?{thinking:{type:'disabled'}}:{}),...(request.json?{response_format:{type:'json_object'}}:{}),messages:[...(request.system?[{role:'system',content:request.system}]:[]),{role:'user',content:image?[{type:'text',text:request.text},{type:'image_url',image_url:{url:request.imageData}}]:request.text}]};
   }else if(connection.protocol==='openai_responses'){
     body={model:connection.model,max_output_tokens:request.maxTokens,...(request.system?{instructions:request.system}:{}),input:[{role:'user',content:image?[{type:'input_text',text:request.text},{type:'input_image',image_url:request.imageData}]:[{type:'input_text',text:request.text}]}]};
   }else if(connection.protocol==='anthropic_messages'){
@@ -176,13 +193,17 @@ export async function requestProviderModel(request:ModelRequest,http:HttpClient)
   }else{
     body={model:connection.model,stream:false,format:request.json?'json':undefined,options:{temperature:request.temperature,num_predict:request.maxTokens},messages:[...(request.system?[{role:'system',content:request.system}]:[]),{role:'user',content:request.text,...(image?{images:[image.base64]}:{})}]};
   }
-  const response=await http(url,'POST',headers,body);
+  let response=await http(url,'POST',headers,body);
   if(response.status<200||response.status>=300)throw httpError(response);
-  const content=responseContent(connection.protocol,response.data);
-  if(!content){
-    const payload=response.data as {choices?:Array<{finish_reason?:unknown}>;status?:unknown;incomplete_details?:unknown};
-    const detail=payload?.choices?.[0]?.finish_reason??payload?.incomplete_details??payload?.status;
-    throw new Error(`接口连接成功，但没有读取到模型正文${detail?`（状态：${JSON.stringify(detail).slice(0,120)}）`:''}。请先运行普通文本测试；若仍为空，请检查模型名称或增大输出上限`);
+  let content=responseContent(connection.protocol,response.data);
+  let detail=completionDetail(response.data);
+  if(!content&&/length|max[_ -]?tokens?|incomplete/i.test(String(typeof detail==='string'?detail:JSON.stringify(detail??'')))){
+    increaseOutputLimit(connection.protocol,body,request.maxTokens);
+    response=await http(url,'POST',headers,body);
+    if(response.status<200||response.status>=300)throw httpError(response);
+    content=responseContent(connection.protocol,response.data);
+    detail=completionDetail(response.data);
   }
+  if(!content)throw new Error(`接口已连接，但模型连续两次没有返回可显示正文${detail?`（状态：${JSON.stringify(detail).slice(0,120)}）`:''}。请从自动模型列表重新选择模型，或换用非纯推理模型`);
   return content;
 }

@@ -1,4 +1,4 @@
-export type NutritionSource = 'local' | 'model' | 'missing';
+export type NutritionSource = 'local' | 'model' | 'manual' | 'missing';
 
 export type FoodItem = {
   id: string;
@@ -47,6 +47,50 @@ export type DailyNutritionAssessment = {
   nextMealAdvice:string[];
   recoveryImpact:string;
   trainingChangeAllowed:false;
+};
+
+export type CalorieTargetInput = {
+  weightKg:number;
+  heightCm?:number;
+  age?:number;
+  sex?:'male'|'female';
+  dailyActivity?:'sedentary'|'light'|'active';
+  goal:'fat_loss'|'strength'|'hypertrophy'|'endurance'|'circuit'|'functional';
+  measuredBmr?:number;
+};
+
+export type CalorieTargetResult = {
+  calories:number;
+  bmr:number;
+  activityMultiplier:number;
+  goalAdjustment:number;
+  source:'report_bmr'|'mifflin_st_jeor'|'weight_estimate';
+};
+
+export function calculateBaseCalorieTarget(input:CalorieTargetInput):CalorieTargetResult {
+  const weight=Math.min(250,Math.max(30,Number(input.weightKg)||65));
+  const height=Number(input.heightCm),age=Number(input.age),measured=Number(input.measuredBmr);
+  let bmr:number,source:CalorieTargetResult['source'];
+  if(measured>=800&&measured<=3500){
+    bmr=measured;source='report_bmr';
+  }else if((input.sex==='male'||input.sex==='female')&&height>=120&&height<=230&&age>=14&&age<=90){
+    bmr=10*weight+6.25*height-5*age+(input.sex==='male'?5:-161);source='mifflin_st_jeor';
+  }else{
+    bmr=weight*22;source='weight_estimate';
+  }
+  const activityMultiplier=input.dailyActivity==='active'?1.5:input.dailyActivity==='sedentary'?1.2:1.35;
+  const goalAdjustment=input.goal==='fat_loss'?-350:input.goal==='hypertrophy'?250:input.goal==='endurance'?150:input.goal==='strength'?100:0;
+  const calories=Math.round(Math.min(5000,Math.max(1200,bmr*activityMultiplier+goalAdjustment))/10)*10;
+  return {calories,bmr:Math.round(bmr),activityMultiplier,goalAdjustment,source};
+}
+
+export type ManualMealInput = {
+  mealName:string;
+  grams?:number;
+  calories:number;
+  protein:number;
+  carbs:number;
+  fat:number;
 };
 
 type Entry = {
@@ -153,6 +197,22 @@ export function recalculateMeal(meal: Meal, items = meal.items): Meal {
     carbs: calculated.reduce((sum,item) => sum + item.carbs,0),
     fat: calculated.reduce((sum,item) => sum + item.fat,0),
   };
+}
+
+export function createManualMeal(input:ManualMealInput):Meal {
+  const mealName=input.mealName.trim()||'手动记录';
+  const grams=clamp(finite(input.grams)||100,1,10_000);
+  const protein=clamp(finite(input.protein),0,1_000);
+  const carbs=clamp(finite(input.carbs),0,2_000);
+  const fat=clamp(finite(input.fat),0,1_000);
+  const calories=clamp(finite(input.calories)||(protein*4+carbs*4+fat*9),0,20_000);
+  const per100=100/grams;
+  const item:FoodItem={
+    id:id(),name:mealName,databaseKey:'manual',grams,cookingMethod:'手动录入',hiddenIngredient:false,
+    caloriesPer100:calories*per100,proteinPer100:protein*per100,carbsPer100:carbs*per100,fatPer100:fat*per100,
+    calories,protein,carbs,fat,referenceName:mealName,nutritionSource:'手动录入',sourceType:'manual',
+  };
+  return {id:id(),timestamp:Date.now(),mealName,confidence:100,assumptions:'用户手动录入',items:[item],calories,protein,carbs,fat};
 }
 
 export function enrichModelMeal(raw: Record<string, unknown>): Meal {
